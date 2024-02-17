@@ -63,7 +63,6 @@ class ViewServer extends Node {
     serViewNum = m.getViewNum();
     serveralive_f.put(sender, serViewNum);//record this sender is alive, and viewNum it knows
 
-
     //initialize after first ping
     if (Objects.equals(cprimaryAdd, null) && Objects.equals(currentViewNum, STARTUP_VIEWNUM)) {
       currentViewNum = INITIAL_VIEWNUM;
@@ -74,33 +73,8 @@ class ViewServer extends Node {
       if(Objects.equals(sender,cprimaryAdd)){
         priViewNum=serViewNum;
       }
-      //primary acknowledges correct current view number
-      if (Objects.equals(priViewNum, currentViewNum)) {
 
-        //view service proceed to a new view
-        if (!Objects.equals(cbackupAdd, null)){//backup exist
-          if (!serveralive_f.containsKey(cprimaryAdd) && !serveralive_s.containsKey(cprimaryAdd)) {
-            //don't receive ping from primary
-            currentViewNum += 1;
-            cprimaryAdd = cbackupAdd;//make backup be new primary
-            cbackupAdd = selectServer(serveralive_f, serveralive_s, cprimaryAdd);
-            currentview = new View(currentViewNum, cprimaryAdd, cbackupAdd);
-          }
-          if (!serveralive_f.containsKey(cbackupAdd) && !serveralive_s.containsKey(cbackupAdd)) {
-            //don't receive ping from backup
-            currentViewNum += 1;
-            cbackupAdd = selectServer(serveralive_f, serveralive_s, cprimaryAdd);//select new backup
-            currentview = new View(currentViewNum, cprimaryAdd, cbackupAdd);
-          }
-        } else {//no backup
-          cbackupAdd = selectServer(serveralive_f, serveralive_s, cprimaryAdd);//select other than cprimary add
-          if (!Objects.equals(cbackupAdd, null)) {//has idle server
-            currentViewNum += 1;
-            currentview = new View(currentViewNum, cprimaryAdd, cbackupAdd);
-          }
-        }
-
-      }
+      changeView();
     }
     this.send(new ViewReply(currentview), sender);
   }
@@ -122,7 +96,10 @@ class ViewServer extends Node {
     serveralive_s.putAll(serveralive_f);
     serveralive_f.clear();
 
-  //check within two consecutive PingCheckTimer
+    //check if primary/backup dead and change current view
+    changeView();
+
+    //check within two consecutive PingCheckTimer
     this.set(t, PING_CHECK_MILLIS);
 
   }
@@ -147,5 +124,34 @@ class ViewServer extends Node {
     return newkey.get(randomIndex);//this is random selected primary
   }
 
+  private void changeView(){
+    //primary acknowledges correct current view number
+    if (Objects.equals(priViewNum, currentViewNum)) {
+
+      //view service proceed to a new view
+      if (!Objects.equals(cbackupAdd, null)){//backup exist
+        if ((!serveralive_f.containsKey(cprimaryAdd)) && (!serveralive_s.containsKey(cprimaryAdd))) {
+          //don't receive ping from primary
+          this.currentViewNum += 1;
+          this.cprimaryAdd = cbackupAdd;//make backup be new primary
+          this.cbackupAdd = selectServer(serveralive_f, serveralive_s, cprimaryAdd);
+          this.currentview = new View(currentViewNum, cprimaryAdd, cbackupAdd);
+        }
+        else if (!serveralive_f.containsKey(cbackupAdd) && !serveralive_s.containsKey(cbackupAdd)) {
+          //don't receive ping from backup
+          this.currentViewNum += 1;
+          this.cbackupAdd = selectServer(serveralive_f, serveralive_s, cprimaryAdd);//select new backup
+          this.currentview = new View(currentViewNum, cprimaryAdd, cbackupAdd);
+        }
+      } else {//no backup
+        this.cbackupAdd = selectServer(serveralive_f, serveralive_s, cprimaryAdd);//select other than cprimary add
+        if (!Objects.equals(cbackupAdd, null)) {//has idle server
+          this.currentViewNum += 1;
+          this.currentview = new View(currentViewNum, cprimaryAdd, cbackupAdd);
+        }
+      }
+
+    }
+  }
 
 }
