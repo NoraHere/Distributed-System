@@ -87,7 +87,7 @@ class SimpleClient extends Node implements Client {
   @Override
   public synchronized boolean hasResult() {
     // Your code here...
-    return Objects.equal(map2.get(clientaddress),comm.sequenceNum());
+    return Objects.equal(map2.get(clientaddress),AMOCommand.getSequenceNum(comm));
     //return (map2.containsKey(req.command().address())&&map2.get(req.command().address())>=req.command().sequenceNum());
     ///return map4.containsKey(this.clientaddress)&&(m.result().sequenceNum>req.command().sequenceNum);
     //return false;//changed
@@ -134,7 +134,7 @@ class SimpleClient extends Node implements Client {
 
     //if has result,return(not resend timer):
     //if(map2.containsKey(t.command().address())&& Objects.equal(map2.get(t.command().address()),t.command().sequenceNum()))return;
-     if(map2.containsKey(t.command().address())&& (map2.get(t.command().address())>=t.command().sequenceNum()))return;
+    if(map2.containsKey(t.command().address())&& (map2.get(t.command().address())>=t.command().sequenceNum()))return;
         ///if(hasResult())return;
         //comm = new AMOCommand(t.command().command(),sequenceNum,t.command().address());
         //req=new Request(comm);

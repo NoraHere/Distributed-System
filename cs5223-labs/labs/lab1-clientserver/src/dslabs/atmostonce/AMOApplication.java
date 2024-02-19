@@ -25,19 +25,18 @@ import dslabs.clientserver.*;
 
 @EqualsAndHashCode
 @ToString
-@RequiredArgsConstructor
+//@RequiredArgsConstructor
 public final class AMOApplication<T extends Application> implements Application {
   @Getter @NonNull private final T application;
 
 
   // Your code here...
-  private AMOResult res;
-  private AMOCommand com;
-  //private Application app;
- // app=AMOApplication(application);
-  //private int sequenceNum;
-
   HashMap<Address,AMOResult> map3=new HashMap<Address,AMOResult>();
+
+  public AMOApplication(T application) {
+    this.application = application;
+  }
+
 
 
   @Override
@@ -53,7 +52,7 @@ public final class AMOApplication<T extends Application> implements Application 
       //Request req= new Request(amoCommand);
       //sequenceNum=amoCommand.sequenceNum()+1;
       ///res=new AMOResult(application.execute(amoCommand.command()),amoCommand.sequenceNum()+1,amoCommand.address());
-      res=new AMOResult(application.execute(amoCommand.command()),amoCommand.sequenceNum(),amoCommand.address());
+      AMOResult res=new AMOResult(application.execute(amoCommand.command()),amoCommand.sequenceNum(),amoCommand.address());
       map3.put(amoCommand.address(),res);
       //res.sequenceNum= ;
       //res.address=;

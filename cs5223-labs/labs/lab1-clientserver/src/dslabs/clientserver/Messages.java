@@ -12,6 +12,10 @@ import dslabs.atmostonce.AMOResult;
 class Request implements Message {
   // Your code here...
   private final AMOCommand command;
+
+  Request(AMOCommand command) {
+    this.command = command;
+  }
   //private final int sequenceNum;
 }
 
@@ -19,5 +23,9 @@ class Request implements Message {
 class Reply implements Message {
   // Your code here...
   private final AMOResult result;
+
+  Reply(AMOResult result) {
+    this.result = result;
+  }
   //private final int sequenceNum;
 }

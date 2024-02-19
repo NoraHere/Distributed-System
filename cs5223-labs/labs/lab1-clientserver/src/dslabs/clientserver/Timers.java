@@ -11,4 +11,8 @@ final class ClientTimer implements Timer {
 
   // Your code here...
   private final AMOCommand command;
+
+  ClientTimer(AMOCommand command) {
+    this.command = command;
+  }
 }

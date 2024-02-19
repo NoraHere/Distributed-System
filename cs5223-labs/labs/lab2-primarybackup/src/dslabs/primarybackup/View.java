@@ -15,4 +15,16 @@ class View implements Serializable {
     this.viewNum=viewnum;
     this.primary=primary;
   }
+
+  public int getViewNum() {
+    return viewNum;
+  }
+
+  public Address getBackup() {
+    return backup;
+  }
+
+  public Address getPrimary() {
+    return primary;
+  }
 }
