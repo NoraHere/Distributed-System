@@ -46,20 +46,24 @@ final class RetryTimer implements Timer{//retry to send GetView()
 final class PrimaryRequestTimer implements Timer{
   static final int CHECK_MILLIS=100;
   private final Request request;
-  private final Address send;
-  PrimaryRequestTimer(Request request,Address send){
+  private final Address sender;
+  PrimaryRequestTimer(Request request,Address sender){
     this.request=request;
-    this.send=send;}
+    this.sender=sender;}
   public static Request getRequest(PrimaryRequestTimer t){return t.request;}
-  public static Address getSendAdd(PrimaryRequestTimer t){return t.send;}
+  public static Address getSenderAdd(PrimaryRequestTimer t){return t.sender;}
 }
 
 final class TransferCheckTimer implements Timer{
   static final int CHECK_MILLIS=100;
   //private final ArrayList<Object> operationList;
   private final ArrayList<ArrayList<Object>> operationList;
+  private final Address sender;
   //TransferCheckTimer(ArrayList<Object> operationList){this.operationList=operationList;}
-  TransferCheckTimer(ArrayList<ArrayList<Object>> operationList){this.operationList=operationList;}
+  TransferCheckTimer(ArrayList<ArrayList<Object>> operationList,Address sender){
+    this.operationList=operationList;
+    this.sender=sender;}
   //public static ArrayList<Object> getOperationList(TransferCheckTimer t){return t.operationList;}
   public static ArrayList<ArrayList<Object>> getOperationList(TransferCheckTimer t){return t.operationList;}
+  public static Address getSenderAdd(TransferCheckTimer t){return t.sender;}
 }

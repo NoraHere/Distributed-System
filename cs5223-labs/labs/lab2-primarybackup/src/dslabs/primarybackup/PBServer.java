@@ -33,6 +33,7 @@ class PBServer extends Node {
   private Address clientAdd;//client address
   int priSeqNum=0;//primary sequence number
   int transferNum=0;//primary send transfer state sequence number
+  Boolean isPrimary=false;
 
   private AMOCommand command;
 
@@ -42,7 +43,7 @@ class PBServer extends Node {
   private HashMap<Request,Integer> mapBackupReply=new HashMap<>();//record received backup reply after
   //private  HashMap<ArrayList<Object>,Integer> transferList=new HashMap<>();//record transferred operationList
   private HashMap<Address,Integer> mapTransferReply=new HashMap<>();//backup address,transferNum;primary after
-  private  HashMap<Address,Integer> transferList=new HashMap<>();//backup address,transferNm;primary before
+  private  HashMap<ArrayList<ArrayList<Object>>,Integer> transferList=new HashMap<>();//operationList,transferNm;primary before
   private HashMap<Address,Reply> replyToClient=new HashMap<>();
   private HashMap<Address,BackupReply> replyToPrimary=new HashMap<>();
   /* -----------------------------------------------------------------------------------------------
@@ -94,21 +95,22 @@ class PBServer extends Node {
     }
 
     //forward the request to backup
-    if (Objects.equals(currentBackup,null)) {//no backup
+    if (Objects.equals(currentBackup,null)) {//no backup=>execute+Reply
       operationList.add(new ArrayList<>(Arrays.asList(request,clientAdd)));
+      transferNum++;//change everytime operationList change
       res=amoapp.execute(command);
       Reply reply=new Reply(res,true);
       send(reply,sender);
       replyToClient.put(clientAdd,reply);//record the reply
     }
     else {// have backup
-      if (!Objects.equals(operationList, null)) {
-        //if havn't received transferReply,wait(backup don't have same operation record)
+      if ((!Objects.equals(operationList, null))&&(!Objects.equals(transferList,null))&&transferList.containsKey(currentBackup)) {
+        //check backup has the same transferNum(operationList)
         if (!(mapTransferReply.containsKey(currentBackup) && Objects.equals(
-            transferList.get(currentBackup), mapTransferReply.get(currentBackup)))) {
-          send(new TransferState(operationList, transferList.get(currentBackup)),
+            transferList.get(operationList), mapTransferReply.get(currentBackup)))) {
+          send(new TransferState(operationList, transferList.get(operationList)),
               currentBackup);//timer resend
-          set(new TransferCheckTimer(operationList), TransferCheckTimer.CHECK_MILLIS);
+          set(new TransferCheckTimer(operationList,this.address), TransferCheckTimer.CHECK_MILLIS);
         }
       }
           Address backup = currentBackup;//incase backup change during resending time
@@ -116,7 +118,7 @@ class PBServer extends Node {
           temOperationList.put(request, priSeqNum);//record the unconfirmed request in primary
           send(new PrimaryRequest(request, priSeqNum),
               backup);//timer resend if no reply from backup
-          set(new PrimaryRequestTimer(request, backup), PrimaryRequestTimer.CHECK_MILLIS);
+          set(new PrimaryRequestTimer(request, this.address), PrimaryRequestTimer.CHECK_MILLIS);
           //get reply from backup: ok or reject
 
 
@@ -133,18 +135,29 @@ class PBServer extends Node {
    currentBackup = currentView.getBackup();
 
    if(Objects.equals(address,currentPrimary)){//primary
+     if((!isPrimary)&&(!Objects.equals(operationList,null))){//backup just become primary,execute
+       res=null;//clear previous result
+       //execute all request getting from transfer
+       for(int i=0;i<operationList.size();i++){
+         Request request= (Request) operationList.get(i).get(0);//Type Object=>Request may has error!!
+         AMOCommand cm=Request.getCommand(request);
+         res=amoapp.execute(cm);
+       }
+     }
+     isPrimary=true;
      if(!Objects.equals(currentBackup,null)) {//has backup
-       if (!Objects.equals(currentBackup, pastBackupAdd)) {//has new backup => transfer state
-         //make current Backupserver operationList empty
-         //PBServer(currentBackup,viewServer,app).operationList.empty();
+       if (!Objects.equals(currentBackup, pastBackupAdd)) {
+         //has new backup+operationList not empty => transfer state
          if (!Objects.equals(operationList, null)) {
-           transferNum++;
-           transferList.put(currentBackup, transferNum);
+           //transferNum++;only when operationList update
+           transferList.put(operationList, transferNum);
            send(new TransferState(operationList, transferNum), currentBackup);//timer resend
-           set(new TransferCheckTimer(operationList), TransferCheckTimer.CHECK_MILLIS);
+           set(new TransferCheckTimer(operationList,this.address), TransferCheckTimer.CHECK_MILLIS);
          }
        }
      }
+   }else{
+     isPrimary=false;
    }
    //this.notify();;
   }
@@ -153,6 +166,8 @@ class PBServer extends Node {
   private void handlePrimaryRequest(PrimaryRequest pr,Address sender){
     //backup
     if(!Objects.equals(this.address,currentBackup))return;
+    if(!Objects.equals(sender,currentPrimary))return;
+
     request=PrimaryRequest.getRequest(pr);//from PrimaryRequest
     int priSeqNum=PrimaryRequest.getPrimarySeqNum(pr);//from PrimaryRequest
 
@@ -185,6 +200,8 @@ class PBServer extends Node {
   private void handleBackupReply(BackupReply br,Address sender){
     //primary
     if(!Objects.equals(this.address,currentPrimary))return;//???
+    if(!Objects.equals(sender,currentBackup))return;
+
     //what if the old primary realize it's not primary after send PrimaryRequest to backup
     //this way it can never reply error to client
     Boolean resultTrue=true;
@@ -203,11 +220,11 @@ class PBServer extends Node {
     if(Objects.equals(message,"RIGHT")){
       res=amoapp.execute(command);
       operationList.add(new ArrayList<>(Arrays.asList(request,clientAdd)));
+      transferNum++;//follow operationList
       //send transfer state in order to let backup share the same operationList
-      transferNum++;
-      transferList.put(sender, transferNum);
-      send(new TransferState(operationList,transferNum),sender);
-      set(new TransferCheckTimer(operationList),TransferCheckTimer.CHECK_MILLIS);
+      transferList.put(operationList, transferNum);
+      send(new TransferState(operationList,transferNum),currentBackup);
+      set(new TransferCheckTimer(operationList,this.address),TransferCheckTimer.CHECK_MILLIS);
     }
     else if(Objects.equals(message,"ERROR")){
       resultTrue=false;
@@ -220,15 +237,17 @@ class PBServer extends Node {
     //this.notify();;
   }
   private void handleTransferReply(TransferReply tr,Address sender){
-    //primary
+    //primary only record in <mapTransferReply>
     if(!Objects.equals(this.address,currentPrimary))return;
-    int transferNumFromBackup=TransferReply.getTransferNum(tr);
-    ArrayList<ArrayList<Object>> operationListFromBackup=TransferReply.getOperationList(tr);
+    if(!Objects.equals(sender,currentBackup))return;
+
+    int transferNumFromBackup=TransferReply.getTransferNum(tr);//get from TransferReply
+    ArrayList<ArrayList<Object>> operationListFromBackup=TransferReply.getOperationList(tr);//get from TransferReply
 
     //if(mapTransferReply.containsKey(sender)&&Objects.equals(mapTransferReply.get(sender),transferNumFromBackup))return;//received transferReply before
     //already successfully transfer,doesn't matter
 
-      mapTransferReply.put(sender,transferNumFromBackup);
+      mapTransferReply.put(sender,transferNumFromBackup);//<Address,transferNum>
       //send(new TransferState(operationList,transferList.get(operationList)),currentBackup);
       //set(new TransferCheckTimer(operationList),TransferCheckTimer.CHECK_MILLIS);
 
@@ -236,17 +255,12 @@ class PBServer extends Node {
   }
 
   private void handleTransferState(TransferState ts,Address sender){
-    //backup
+    //backup only record
     if(!Objects.equals(this.address,currentBackup))return;
+    if(!Objects.equals(sender,currentPrimary))return;
+
     operationList=TransferState.getOperationList(ts);//get from transferState
     int transferNum=TransferState.getTransferNum(ts);//get from transferState
-    res=null;//clear previous result
-    //execute all request getting from transfer
-    for(int i=0;i<operationList.size();i++){
-      Request request= (Request) operationList.get(i).get(0);//Type Object=>Request may has error!!
-      AMOCommand cm=Request.getCommand(request);
-      res=amoapp.execute(cm);
-    }
     send(new TransferReply(operationList,transferNum),sender);
 
   }
@@ -266,29 +280,41 @@ class PBServer extends Node {
     //if receive BackupReply return;
     //if()return;
     Request request=PrimaryRequestTimer.getRequest(t);
-    Address backup=PrimaryRequestTimer.getSendAdd(t);
+    Address sender=PrimaryRequestTimer.getSenderAdd(t);
+    if(!Objects.equals(sender,currentPrimary))return;//not sent from current primary
     if(mapBackupReply.containsKey(request))return;//received reply from backup
-    send(new PrimaryRequest(request,temOperationList.get(request)), backup);
-    set(new PrimaryRequestTimer(request,backup),PrimaryRequestTimer.CHECK_MILLIS);
+    send(new PrimaryRequest(request,temOperationList.get(request)), currentBackup);
+    set(new PrimaryRequestTimer(request,sender),PrimaryRequestTimer.CHECK_MILLIS);
   }
 
   private void onTransferCheckTimer(TransferCheckTimer t){
     //if already transfer all operation, return;
-    ArrayList<ArrayList<Object>> operationList=TransferCheckTimer.getOperationList(t);
-    if(Objects.equals(transferList,null))return;
-    if(mapTransferReply.containsKey(currentBackup)&&Objects.equals(transferList.get(currentBackup),mapTransferReply.get(currentBackup)))return;//received TransferReply
+    //ArrayList<ArrayList<Object>> operationList=TransferCheckTimer.getOperationList(t);//get from TransferCheckTimer
+    Address sender=TransferCheckTimer.getSenderAdd(t);//get from TransferCheckTimer
+    if(!Objects.equals(sender,currentPrimary))return;//not sent from primary=>outdated check
+
+    if(Objects.equals(transferList,null))return;//no need to transfer
+    if(Objects.equals(currentBackup,null))return;//no need to transfer
+    if(!transferList.containsKey(operationList))return;//no need to transfer
+    if(mapTransferReply.containsKey(currentBackup)&&Objects.equals(transferList.get(operationList),mapTransferReply.get(currentBackup)))return;//received TransferReply
     //if(mapTransferReply.containsKey(currentBackup))return;
-    if (!Objects.equals(currentBackup,null)) {
-      send(new TransferState(operationList, transferList.get(currentBackup)), currentBackup);
-      set(new TransferCheckTimer(operationList), TransferCheckTimer.CHECK_MILLIS);
-    }
+    //if (!Objects.equals(currentBackup,null)) {
+    send(new TransferState(operationList, transferList.get(operationList)), currentBackup);
+    set(new TransferCheckTimer(operationList,sender), TransferCheckTimer.CHECK_MILLIS);
+    //}
   }
 
   /* -----------------------------------------------------------------------------------------------
    *  Utils
    * ---------------------------------------------------------------------------------------------*/
   // Your code here...
-  public ArrayList<ArrayList<Object>> getOperationList(){
-    return this.operationList;
+  public class TransferMessage{
+    private ArrayList<ArrayList<Object>> operationList;
+    private int transferNum;
+    TransferMessage(ArrayList<ArrayList<Object>> operationList,int transferNum){
+      this.transferNum=transferNum;
+      this.operationList=operationList;
+    }
+
   }
 }
