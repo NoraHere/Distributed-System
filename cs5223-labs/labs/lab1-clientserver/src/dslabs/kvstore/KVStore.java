@@ -60,7 +60,7 @@ public class KVStore implements Application {
     }
 
     // Your code here...
-    private final HashMap<String,String> map0= new HashMap<>();
+    private final HashMap<String,String> map0= new HashMap<>();//result
 
     @Override
     public synchronized KVStoreResult execute(Command command) {

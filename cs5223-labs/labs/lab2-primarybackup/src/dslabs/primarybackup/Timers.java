@@ -52,7 +52,10 @@ final class PrimaryRequestTimer implements Timer{
 
 final class TransferCheckTimer implements Timer{
   static final int CHECK_MILLIS=100;
-  private final ArrayList<Object> operationList;
-  TransferCheckTimer(ArrayList<Object> operationList){this.operationList=operationList;}
-  public static ArrayList<Object> getOperationList(TransferCheckTimer t){return t.operationList;}
+  //private final ArrayList<Object> operationList;
+  private final ArrayList<ArrayList<Object>> operationList;
+  //TransferCheckTimer(ArrayList<Object> operationList){this.operationList=operationList;}
+  TransferCheckTimer(ArrayList<ArrayList<Object>> operationList){this.operationList=operationList;}
+  //public static ArrayList<Object> getOperationList(TransferCheckTimer t){return t.operationList;}
+  public static ArrayList<ArrayList<Object>> getOperationList(TransferCheckTimer t){return t.operationList;}
 }

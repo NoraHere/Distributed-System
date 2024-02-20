@@ -5,10 +5,7 @@ import dslabs.atmostonce.AMOCommand;
 import dslabs.atmostonce.AMOResult;
 import dslabs.framework.Address;
 import dslabs.framework.Application;
-import dslabs.framework.Client;
-import dslabs.framework.Command;
 import dslabs.framework.Node;
-import dslabs.framework.Result;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Objects;
@@ -16,12 +13,7 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
 //self-adding
-import dslabs.primarybackup.PingTimer;
-import dslabs.primarybackup.Ping;
 import java.util.ArrayList;
-import org.checkerframework.checker.units.qual.A;
-
-import static dslabs.primarybackup.ViewServer.INITIAL_VIEWNUM;
 
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
@@ -44,10 +36,12 @@ class PBServer extends Node {
 
   private AMOCommand command;
 
-  private ArrayList<Object> operationList= new ArrayList<>();//record all operations
+  //private ArrayList<Object> operationList= new ArrayList<>();//record all operations
+  private ArrayList<ArrayList<Object>> operationList = new ArrayList<>();
   private HashMap<Request,Integer> temOperationList=new HashMap<>();//record all unconfirmed operations
   private HashMap<Request,Integer> mapBackupReply=new HashMap<>();//record received backup reply
-  private  HashMap<ArrayList<Object>,Integer> transferList=new HashMap<>();//record transferred operationList
+  //private  HashMap<ArrayList<Object>,Integer> transferList=new HashMap<>();//record transferred operationList
+  private  HashMap<ArrayList<ArrayList<Object>>,Integer> transferList=new HashMap<>();
   private HashMap<Address,Reply> replyToClient=new HashMap<>();
   private HashMap<Address,BackupReply> replyToPrimary=new HashMap<>();
   /* -----------------------------------------------------------------------------------------------
@@ -159,6 +153,7 @@ class PBServer extends Node {
     if(Objects.equals(sender,currentPrimary)){//sender is primary
       message="RIGHT";
       operationList.add(new ArrayList<>(Arrays.asList(request,clientAdd)));
+      res=amoapp.execute(command);
     }
     else{
       message="ERROR";
@@ -203,7 +198,7 @@ class PBServer extends Node {
     //primary
     if(!Objects.equals(this.address,currentPrimary))return;
     int transferNumFromBackup=TransferReply.getTransferNum(tr);
-    ArrayList<Object> operationListFromBackup=TransferReply.getOperationList(tr);
+    ArrayList<ArrayList<Object>> operationListFromBackup=TransferReply.getOperationList(tr);
 
     //already successfully transfer
     if(Objects.equals(transferList.get(operationListFromBackup),transferNumFromBackup)) {
@@ -223,6 +218,12 @@ class PBServer extends Node {
     if(!Objects.equals(this.address,currentBackup))return;
     operationList=TransferState.getOperationList(ts);//get from transferState
     int transferNum=TransferState.getTransferNum(ts);//get from transferState
+    //execute all request getting from transfer
+    for(int i=0;i<operationList.size();i++){
+      Request request= (Request) operationList.get(i).get(0);//Type Object=>Request may has error!!
+      AMOCommand cm=Request.getCommand(request);
+      res=amoapp.execute(cm);
+    }
     send(new TransferReply(operationList,transferNum),sender);
   }
 
@@ -248,7 +249,7 @@ class PBServer extends Node {
 
   private void onTransferCheckTimer(TransferCheckTimer t){
     //if already transfer all operation, return;
-    ArrayList<Object> operationList=TransferCheckTimer.getOperationList(t);
+    ArrayList<ArrayList<Object>> operationList=TransferCheckTimer.getOperationList(t);
     if(!transferList.containsKey(operationList))return;//received TransferReply
     if (!Objects.equals(currentBackup,null)) {
       send(new TransferState(operationList, transferList.get(operationList)), currentBackup);
@@ -260,7 +261,7 @@ class PBServer extends Node {
    *  Utils
    * ---------------------------------------------------------------------------------------------*/
   // Your code here...
-  public ArrayList<Object> getOperationList(){
+  public ArrayList<ArrayList<Object>> getOperationList(){
     return this.operationList;
   }
 }

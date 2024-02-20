@@ -62,25 +62,31 @@ class Reply implements Message {
 
 // Your code here...
 class TransferState implements Message{//transfer the complete application state
-  private ArrayList<Object> operationList;
+  //private ArrayList<Object> operationList;
+  private ArrayList<ArrayList<Object>> operationList;
   private int transferNum;//sequence number record transfer
-  public  TransferState(ArrayList<Object> operationList,int transferNum){
+  //public  TransferState(ArrayList<Object> operationList,int transferNum){
+  public  TransferState(ArrayList<ArrayList<Object>> operationList,int transferNum){
     this.operationList=operationList;
     this.transferNum=transferNum;
   }
-  public static ArrayList<Object> getOperationList(TransferState ts){return ts.operationList;}
+  //public static ArrayList<Object> getOperationList(TransferState ts){return ts.operationList;}
+  public static ArrayList<ArrayList<Object>> getOperationList(TransferState ts){return ts.operationList;}
   public static int getTransferNum(TransferState ts){return ts.transferNum;}
 }
 
 class TransferReply implements Message{//backup reply transfer status
-  private ArrayList<Object> operationList;
+  //private ArrayList<Object> operationList;
+  private ArrayList<ArrayList<Object>> operationList;
   private int transferNum;
-  public TransferReply(ArrayList<Object> operationList, int transferNum){
+  //public TransferReply(ArrayList<Object> operationList, int transferNum){
+  public TransferReply(ArrayList<ArrayList<Object>> operationList, int transferNum){
     this.transferNum=transferNum;
     this.operationList=operationList;
   }
   public static int getTransferNum(TransferReply tr){return tr.transferNum;}
-  public static ArrayList<Object> getOperationList(TransferReply tr){return tr.operationList;}
+  //public static ArrayList<Object> getOperationList(TransferReply tr){return tr.operationList;}
+  public static ArrayList<ArrayList<Object>> getOperationList(TransferReply tr){return tr.operationList;}
 }
 
 class PrimaryRequest implements Message{//message primary send to backup
