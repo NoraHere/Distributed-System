@@ -123,7 +123,7 @@ class PBServer extends Node {
 
    if(Objects.equals(address,currentPrimary)){//primary
      if(!Objects.equals(currentBackup,null)) {//has backup
-       if (!Objects.equals(currentBackup, pastBackupAdd)) {//has new backup => transfer
+       if (!Objects.equals(currentBackup, pastBackupAdd)) {//has new backup => transfer state
          //make current Backupserver operationList empty
          //PBServer(currentBackup,viewServer,app).operationList.empty();
          transferNum++;
@@ -170,7 +170,7 @@ class PBServer extends Node {
 
   private void handleBackupReply(BackupReply br,Address sender){
     //primary
-    if(Objects.equals(this.address,currentPrimary))return;//???
+    if(!Objects.equals(this.address,currentPrimary))return;//???
     //what if the old primary realize it's not primary after send PrimaryRequest to backup
     //this way it can never reply error to client
     Boolean resultTrue=true;
@@ -197,7 +197,7 @@ class PBServer extends Node {
     replyToClient.put(clientAdd,reply);//record the reply
     mapBackupReply.put(request,priSeqNumFromBackup);
     //temOperationList.remove(request);//received BackupReply
-    this.notify();;
+    //this.notify();;
   }
   private void handleTransferReply(TransferReply tr,Address sender){
     //primary
@@ -214,7 +214,7 @@ class PBServer extends Node {
       send(new TransferState(operationList,transferList.get(operationList)),currentBackup);
       set(new TransferCheckTimer(operationList),TransferCheckTimer.CHECK_MILLIS);
     }
-    this.notify();
+    //this.notify();
 
   }
 
