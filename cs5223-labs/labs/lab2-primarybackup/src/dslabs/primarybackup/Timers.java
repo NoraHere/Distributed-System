@@ -46,8 +46,12 @@ final class RetryTimer implements Timer{//retry to send GetView()
 final class PrimaryRequestTimer implements Timer{
   static final int CHECK_MILLIS=100;
   private final Request request;
-  PrimaryRequestTimer(Request request){this.request=request;}
+  private final Address send;
+  PrimaryRequestTimer(Request request,Address send){
+    this.request=request;
+    this.send=send;}
   public static Request getRequest(PrimaryRequestTimer t){return t.request;}
+  public static Address getSendAdd(PrimaryRequestTimer t){return t.send;}
 }
 
 final class TransferCheckTimer implements Timer{
