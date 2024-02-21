@@ -61,7 +61,9 @@ class PBClient extends Node implements Client {
       sequenceNum++;
       this.comm = new AMOCommand(com, sequenceNum, clientAddress);
       req = new Request(comm);
-      this.send(req, currentPrimary);
+      if(!Objects.equal(currentPrimary,null)){
+        this.send(req, currentPrimary);
+      }
       this.set(new ClientTimer(comm), ClientTimer.CLIENT_RETRY_MILLIS);
 
   }
@@ -96,7 +98,7 @@ class PBClient extends Node implements Client {
     }
     else{//receive error from primary, getView()
       send(new GetView(),viewServer);
-      set(new RetryTimer(sender),RetryTimer.RETRY_MILLIS);
+      //set(new RetryTimer(sender),RetryTimer.RETRY_MILLIS);//?
     }
 
   }
@@ -120,13 +122,15 @@ class PBClient extends Node implements Client {
     //received result already
     if(map2.containsKey(AMOCommand.getAddress(comm))&& (map2.get(AMOCommand.getAddress(comm))>=AMOCommand.getSequenceNum(comm)))return;
     send(new GetView(),viewServer);//current primary seems to be dead
-    send(new Request(comm),currentPrimary);
-    set(t,ClientTimer.CLIENT_RETRY_MILLIS);
+    if(!Objects.equal(currentPrimary,null)) {
+      send(new Request(comm), currentPrimary);
+    }
+    set(t, ClientTimer.CLIENT_RETRY_MILLIS);
   }
   //self-adding
   private synchronized void onRetryTimer(RetryTimer t){
     Address pastPrimaryAdd=RetryTimer.getPastPrimary(t);
-    if(!Objects.equal(currentPrimary,pastPrimaryAdd))return;//received new PrimaryAdd
+    if(!Objects.equal(currentPrimary,null))return;//received new PrimaryAdd
     send(new GetView(), viewServer);
     set(new RetryTimer(pastPrimaryAdd), RetryTimer.RETRY_MILLIS);
   }
