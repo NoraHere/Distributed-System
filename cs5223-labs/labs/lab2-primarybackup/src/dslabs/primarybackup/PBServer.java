@@ -283,6 +283,23 @@ class PBServer extends Node {
   private void onPingTimer(PingTimer t) {
     // Your code here...
     //periodically Ping the viewServer
+
+    //primary must successfully transferState to backup before send Ping to ACK
+    if(Objects.equals(this.address,currentPrimary)){
+      if(!Objects.equals(currentBackup,null)){//has backup
+        if ((!Objects.equals(operationList, null))&&(!Objects.equals(transferList,null))
+            &&transferList.containsKey(operationList)) {
+          //check backup has the same transferNum(operationList)
+          if (!(mapTransferReply.containsKey(currentBackup) && Objects.equals(
+              transferList.get(operationList), mapTransferReply.get(currentBackup)))) {
+            send(new TransferState(operationList, transferList.get(operationList)),
+                currentBackup);//timer resend
+            set(new TransferCheckTimer(operationList,this.address), TransferCheckTimer.CHECK_MILLIS);
+          }
+        }
+      }
+    }
+
     send(new Ping(viewNum),viewServer);
     set(new PingTimer(),PingTimer.PING_MILLIS);
   }
