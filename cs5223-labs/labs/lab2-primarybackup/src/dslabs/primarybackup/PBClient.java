@@ -94,9 +94,9 @@ class PBClient extends Node implements Client {
       map2.put(AMOResult.getAddress(res),AMOResult.getSequenceNum(res));
       this.notify();
     }
-    else{//receive error, getView()
+    else{//receive error from primary, getView()
       send(new GetView(),viewServer);
-      //set(new RetryTimer(currentPrimary),RetryTimer.RETRY_MILLIS);
+      set(new RetryTimer(sender),RetryTimer.RETRY_MILLIS);
     }
 
   }
