@@ -1,26 +1,17 @@
 package dslabs.atmostonce;
 
-//import dslabs.clientserver.Request;
-import com.sun.net.httpserver.Request;
+
 import dslabs.framework.Address;
 import dslabs.framework.Application;
 import dslabs.framework.Command;
 import dslabs.framework.Result;
-import java.util.Objects;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 
 //adding
-//import dslabs.atmostonce.AMOResult;
-//import dslabs.atmostonce.AMOCommand;
 import java.util.HashMap;
-import dslabs.kvstore.KVStore;
-import dslabs.clientserver.*;//?
-import dslabs.kvstore.KVStore;
-import dslabs.clientserver.*;
 
 
 @EqualsAndHashCode

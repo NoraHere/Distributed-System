@@ -1,6 +1,5 @@
 package dslabs.atmostonce;
 
-import dslabs.framework.Command;
 import dslabs.framework.Result;
 import lombok.Data;
 
