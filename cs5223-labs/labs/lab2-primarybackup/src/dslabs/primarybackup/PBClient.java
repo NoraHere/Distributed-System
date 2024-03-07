@@ -12,8 +12,6 @@ import java.util.HashMap;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
-//self-adding
-import dslabs.primarybackup.ViewReply;
 
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)

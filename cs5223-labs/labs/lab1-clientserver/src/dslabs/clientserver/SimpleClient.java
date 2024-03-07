@@ -13,15 +13,8 @@ import lombok.ToString;
 //self adding
 import static dslabs.clientserver.ClientTimer.CLIENT_RETRY_MILLIS;
 import java.util.HashMap;
-import dslabs.kvstore.KVStore.Get;
-import dslabs.kvstore.KVStore.Put;
-import dslabs.kvstore.KVStore.Append;
-import dslabs.kvstore.KVStore.KVStoreResult;
-import dslabs.clientserver.Request;
-import dslabs.kvstore.KVStore.SingleKeyCommand;
 import dslabs.atmostonce.AMOResult;
 import dslabs.atmostonce.AMOCommand;
-import dslabs.clientserver.ClientTimer;
 /**
  * Simple client that sends requests to a single server and returns responses.
  *

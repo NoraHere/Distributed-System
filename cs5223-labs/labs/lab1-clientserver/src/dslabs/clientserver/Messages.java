@@ -4,8 +4,6 @@ import dslabs.framework.Message;
 import lombok.Data;
 
 //self adding
-import dslabs.framework.Result;
-import dslabs.framework.Command;
 import dslabs.atmostonce.AMOCommand;
 import dslabs.atmostonce.AMOResult;
 @Data
