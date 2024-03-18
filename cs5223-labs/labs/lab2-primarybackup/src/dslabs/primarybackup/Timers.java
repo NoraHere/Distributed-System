@@ -2,6 +2,7 @@ package dslabs.primarybackup;
 
 import dslabs.atmostonce.AMOCommand;
 
+import dslabs.framework.Command;
 import dslabs.framework.Timer;
 import java.util.ArrayList;
 import lombok.Data;
