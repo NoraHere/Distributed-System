@@ -20,7 +20,7 @@ class HeartBeatTimer implements Timer{
   static final int RETRY_MILLIS=50;
 }
 class CheckActive implements Timer{
-  static final int RETRY_MILLIS=200;
+  static final int RETRY_MILLIS=100;
 }
 class Phase1aTimer implements Timer{
   static final int RETRY_MILLIS=50;

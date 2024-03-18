@@ -94,6 +94,7 @@ public class PaxosServer extends Node {
           send(new Phase1a(num),add);
         }
       }
+      stop_phase1a_timer=false;
       set(new Phase1aTimer(num),Phase1aTimer.RETRY_MILLIS);//resend p1a until active_leader
 
       if(!phase1b_record.containsKey(this.address)){//pretend to handle phase1a as self.acceptor
@@ -249,7 +250,8 @@ public class PaxosServer extends Node {
               send(new Phase2a(l_ballot,slot_in,comm), add);//<b,s,c>
             }
           }
-          set(new Phase2aTimer(l_ballot,slot_in,comm),Phase1aTimer.RETRY_MILLIS);
+          stop_phase2a_timer=false;
+          set(new Phase2aTimer(l_ballot,slot_in,comm),Phase2aTimer.RETRY_MILLIS);
           //pretend to handle phase2a as self.acceptor
           if(Objects.equals(a_ballot,l_ballot)){
             pvalue pv=new pvalue(l_ballot,slot_in,comm);
@@ -324,6 +326,7 @@ public class PaxosServer extends Node {
     if (message.ballot_num==a_ballot){
       pvalue pv=new pvalue(message.ballot_num,message.slot_num,message.com);
       accepted.add(pv);
+      Logger.getLogger("Accepted").info("Accepted: " + accepted);
     }
     send(new Phase2b(a_ballot,message.slot_num),sender);//???slot num
     Logger.getLogger("Message").info("P2b Message(b,s): " + a_ballot+", "+message.slot_num);
@@ -361,6 +364,9 @@ public class PaxosServer extends Node {
       result=application.execute(comm);
       results.put(decision,result);//record <decision,result>
       requests.remove(AMOCommand.getAddress(decision.com));//remove client add
+
+      //as acceptor
+      //accepted.remove(0);
 
       //send PaxosReply to client as Dleader
       decisions.put(message.slot_num,comm);
@@ -406,7 +412,7 @@ public class PaxosServer extends Node {
   }
   private void handleHeartbeat(Heartbeat message,Address sender){
     dis_alive_f=true;
-    stop_phase1a_timer=true;
+    stop_phase1a_timer = true;
   }
 
 
@@ -436,16 +442,17 @@ private void onCheckActive(CheckActive t){
           send(new Phase1a(num),add);
         }
       }
+      stop_phase1a_timer=false;
+      set(new Phase1aTimer(num),Phase1aTimer.RETRY_MILLIS);//resend p1a until active_leader
+
       if(!phase1b_record.containsKey(this.address)){//pretend to accept phase1b from self
         if(a_ballot<num){
           a_ballot=num;
         }
         phase1b_record.put(this.address,new Phase1b(a_ballot,accepted));
       }
-      set(new Phase1aTimer(num),Phase1aTimer.RETRY_MILLIS);//resend p1a until active_leader
     }
     set(t,CheckActive.RETRY_MILLIS);
-    dis_alive_s=false;
     dis_alive_s=dis_alive_f;
     dis_alive_f=false;
   }
@@ -454,7 +461,6 @@ private void onPhase1aTimer(Phase1aTimer t){
   //AS Leaders
   if(isActive){return;}
   if(stop_phase1a_timer){
-    stop_phase1a_timer=false;
     return;
   }
 
@@ -495,10 +501,11 @@ private void onPhase2aTimer(Phase2aTimer t){
     return;
   }
   for (Address add : servers){
-    if (! add.equals(this.address)){//send phase1a to all acceptors
+    if (! add.equals(this.address)){//send phase2a to all acceptors
       send(new Phase2a(t.ballot_num,t.slot_num,t.com),add);
     }
   }
+  stop_phase2a_timer=false;
 
   //pretend to handle phase2a as self.acceptor
   if(Objects.equals(a_ballot,l_ballot)){
