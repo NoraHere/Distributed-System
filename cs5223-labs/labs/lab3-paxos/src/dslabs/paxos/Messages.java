@@ -5,60 +5,47 @@ import dslabs.atmostonce.AMOCommand;
 import dslabs.framework.Message;
 import dslabs.framework.Address;
 import java.util.ArrayList;
+import java.util.HashMap;
 import dslabs.paxos.PaxosServer.pvalue;
-
+import lombok.Data;
+@Data
 class Heartbeat implements Message{
-
+  private final int cleared;
 }
-class Proposal implements Message {
-  int slot_num;
-  AMOCommand com;
-  public Proposal(int slot_num,AMOCommand com){
-    this.slot_num=slot_num;
-    this.com=com;
-  }
-
+@Data
+class HeartbeatReply implements Message{
+  private final int slot_out;
 }
+@Data
 class Decision implements Message{
-  int slot;
-  AMOCommand com;
-  public Decision(int slot,AMOCommand com){
-    this.slot=slot;
-    this.com=com;
-  }
+  private final int slot;
+  private final AMOCommand com;
 }
-
+@Data
 class Phase1a implements Message{
-  double ballot_num;
-  public Phase1a(double num){
-    this.ballot_num=num;
-  }
+  private final double ballot_num;
 }
-
+@Data
 class Phase1b implements Message{
-  double ballot_num;
-  ArrayList<pvalue> accepted;
-  public Phase1b(double num,ArrayList<pvalue> accepted){
-    this.ballot_num=num;
-    this.accepted=accepted;
-  }
-
+  private final double ballot_num;//acceptor ballot number
+  private final HashMap<Integer,pvalue> accepted;//{slot_num:pvalues<b,s,c>,...}
+  //save decisions
 }
+@Data
 class Phase2a implements Message{
-  double ballot_num;
-  int slot_num;
-  AMOCommand com;
-  public Phase2a(double ballot_num,int slot_num,AMOCommand com){
-    this.ballot_num=ballot_num;
-    this.slot_num=slot_num;
-    this.com=com;
-  }
+  private final double ballot_num;
+  private final int slot_num;
+  private final AMOCommand com;
 }
+@Data
 class Phase2b implements Message{
-  double ballot_num;
-  int slot_num;
-  public Phase2b(double num,int slot){
-    this.ballot_num=num;
-    this.slot_num=slot;
-  }
+  private final double ballot_num;
+  private final int slot_num;
 }
+
+//@Data
+//class pvalue{
+//  private final double ballot_num;
+//  private final int slot_num;
+//  private final AMOCommand com;
+//}
