@@ -1,0 +1,162 @@
+[INFO   ] [2024-03-20 21:24:51] [] Finish ELECT by: server1
+[INFO   ] [2024-03-20 21:24:51] [] Finish ELECT by: server2
+[INFO   ] [2024-03-20 21:24:51] [] Finish ELECT by: server3
+[INFO   ] [2024-03-20 21:24:51] [] Finish ELECT by: server4
+[INFO   ] [2024-03-20 21:24:51] [] Finish ELECT by: server5
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server1 -> server3, Phase1a(ballot_num=0.0))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server1 -> server2, Phase1a(ballot_num=0.0))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server2 -> server1, Phase1a(ballot_num=0.1))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server2 -> server3, Phase1a(ballot_num=0.1))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server1, Phase1a(ballot_num=0.2))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server2, Phase1a(ballot_num=0.2))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(client1 -> server2, PaxosRequest(command=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1)))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(client1 -> server1, PaxosRequest(command=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1)))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(client1 -> server3, PaxosRequest(command=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1)))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server1 -> server2, Phase1b(ballot_num=0.1, accepted={}))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server1 -> server3, Phase1b(ballot_num=0.2, accepted={}))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server2 -> server1, Phase1b(ballot_num=0.1, accepted={}))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server2, Phase1b(ballot_num=0.2, accepted={}))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server2 -> server3, Phase1b(ballot_num=0.2, accepted={}))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> server1, Phase1aTimer(num=0.0))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server2, Heartbeat(cleared=0))
+[INFO   ] [2024-03-20 21:24:51] [] Finish ELECT by: server1
+[INFO   ] [2024-03-20 21:24:51] [] Distinguished: server3 ballot_num: 0.2
+[INFO   ] [2024-03-20 21:24:51] [] Finish garbage collection by: server2
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server1, Phase1b(ballot_num=0.2, accepted={}))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server1 -> server2, Phase1a(ballot_num=0.0))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server1, Heartbeat(cleared=0))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> server2, Phase1aTimer(num=0.1))
+[INFO   ] [2024-03-20 21:24:51] [] Finish garbage collection by: server1
+[INFO   ] [2024-03-20 21:24:51] [] Finish ELECT by: server2
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> server5, Phase1aTimer(num=0.4))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> server4, Phase1aTimer(num=0.30000000000000004))
+[INFO   ] [2024-03-20 21:24:51] [] Finish ELECT by: server5
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server1, Phase2a(ballot_num=0.2, slot_num=1, com=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1)))
+[INFO   ] [2024-03-20 21:24:51] [] Finish ELECT by: server4
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server2, Phase2a(ballot_num=0.2, slot_num=1, com=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1)))
+[INFO   ] [2024-03-20 21:24:51] [] Finish PROPOSE by: server3
+[INFO   ] [2024-03-20 21:24:51] [NEW DISTINGUISHED Leader] New distinguished leader: server3ballot_num:  0.2
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server2 -> server1, Phase1b(ballot_num=0.2, accepted={}))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> server3, Phase1aTimer(num=0.2))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server2 -> server1, Phase1a(ballot_num=0.1))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> server3, HeartBeatTimer())
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server2, Heartbeat(cleared=0))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server1 -> server3, Phase1a(ballot_num=0.0))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server1, Heartbeat(cleared=0))
+[INFO   ] [2024-03-20 21:24:51] [] Finish garbage collection by: server2
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server2 -> server3, HeartbeatReply(slot_out=1))
+[INFO   ] [2024-03-20 21:24:51] [] Finish garbage collection by: server1
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server1 -> server3, HeartbeatReply(slot_out=1))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server1 -> server2, Phase1b(ballot_num=0.2, accepted={1=PaxosServer.pvalue(ballot_num=0.2, slot_num=1, com=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1))}))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server2 -> server3, Phase1a(ballot_num=0.1))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server1, Phase1b(ballot_num=0.2, accepted={1=PaxosServer.pvalue(ballot_num=0.2, slot_num=1, com=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1))}))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server2, Phase1b(ballot_num=0.2, accepted={1=PaxosServer.pvalue(ballot_num=0.2, slot_num=1, com=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1))}))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server1 -> server3, Phase2b(ballot_num=0.2, slot_num=1))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> server3, HeartBeatTimer())
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> server1, Phase1aTimer(num=0.0))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server2, Heartbeat(cleared=0))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server2 -> server3, Phase2b(ballot_num=0.2, slot_num=1))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server1, Heartbeat(cleared=0))
+[INFO   ] [2024-03-20 21:24:51] [] Finish garbage collection by: server2
+[INFO   ] [2024-03-20 21:24:51] [] Finish garbage collection by: server1
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> client1, ClientTimer(command=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1)))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> server2, Phase1aTimer(num=0.1))
+[INFO   ] [2024-03-20 21:24:51] [Decision] Decision: Decision(slot=1, com=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(client1 -> server1, PaxosRequest(command=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1)))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(client1 -> server2, PaxosRequest(command=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1)))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> server5, Phase1aTimer(num=0.4))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server1, Decision(slot=1, com=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1)))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> server4, Phase1aTimer(num=0.30000000000000004))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server2, Decision(slot=1, com=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1)))
+[INFO   ] [2024-03-20 21:24:51] [] Finish ELECT by: server5
+[INFO   ] [2024-03-20 21:24:51] [] Finish perform by: server1
+[INFO   ] [2024-03-20 21:24:51] [] Finish perform by: server3
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> client1, PaxosReply(result=AMOResult(result=KVStore.PutOk(), sequenceNum=1, address=client1)))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> server3, Phase2aTimer(ballot_num=0.2, slot_num=1, com=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1)))
+[INFO   ] [2024-03-20 21:24:51] [] Finish ELECT by: server4
+[INFO   ] [2024-03-20 21:24:51] [] Finish perform by: server2
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> server3, HeartBeatTimer())
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server5, Heartbeat(cleared=0))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server4, Heartbeat(cleared=0))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server5 -> server3, Phase1a(ballot_num=0.4))
+[INFO   ] [2024-03-20 21:24:51] [] Finish garbage collection by: server5
+[INFO   ] [2024-03-20 21:24:51] [] Finish garbage collection by: server4
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server4 -> server3, Phase1a(ballot_num=0.30000000000000004))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(client2 -> server5, PaxosRequest(command=AMOCommand(command=KVStore.Get(key=foo), sequenceNum=1, address=client2)))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(client2 -> server4, PaxosRequest(command=AMOCommand(command=KVStore.Get(key=foo), sequenceNum=1, address=client2)))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(client2 -> server3, PaxosRequest(command=AMOCommand(command=KVStore.Get(key=foo), sequenceNum=1, address=client2)))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server5, Phase1b(ballot_num=0.4, accepted={1=PaxosServer.pvalue(ballot_num=0.2, slot_num=1, com=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1))}))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server4, Phase1b(ballot_num=0.4, accepted={1=PaxosServer.pvalue(ballot_num=0.2, slot_num=1, com=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1))}))
+[INFO   ] [2024-03-20 21:24:51] [] Finish PROPOSE by: server3
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server5, Phase2a(ballot_num=0.2, slot_num=2, com=AMOCommand(command=KVStore.Get(key=foo), sequenceNum=1, address=client2)))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server4, Phase2a(ballot_num=0.2, slot_num=2, com=AMOCommand(command=KVStore.Get(key=foo), sequenceNum=1, address=client2)))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server5 -> server3, HeartbeatReply(slot_out=1))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> server3, HeartBeatTimer())
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server5, Decision(slot=1, com=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1)))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server4 -> server3, HeartbeatReply(slot_out=1))
+[INFO   ] [2024-03-20 21:24:51] [] Finish garbage collection by: server3
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server4, Heartbeat(cleared=0))
+[INFO   ] [2024-03-20 21:24:51] [] Finish garbage collection by: server4
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server5 -> server3, Phase2b(ballot_num=0.4, slot_num=2))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server4, Decision(slot=1, com=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1)))
+[INFO   ] [2024-03-20 21:24:51] [] Finish perform by: server4
+[INFO   ] [2024-03-20 21:24:51] [] Finish perform by: server5
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server4 -> server3, Phase2b(ballot_num=0.30000000000000004, slot_num=2))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server5, Heartbeat(cleared=0))
+[INFO   ] [2024-03-20 21:24:51] [Preempted] server3
+[INFO   ] [2024-03-20 21:24:51] [] Finish garbage collection by: server5
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server4 -> server3, HeartbeatReply(slot_out=1))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server5 -> server3, HeartbeatReply(slot_out=2))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> server3, HeartBeatTimer())
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> server5, Phase1aTimer(num=0.4))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> server4, Phase1aTimer(num=0.30000000000000004))
+[INFO   ] [2024-03-20 21:24:51] [] Finish ELECT by: server5
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server5 -> server3, Phase1a(ballot_num=0.4))
+[INFO   ] [2024-03-20 21:24:51] [] Finish ELECT by: server4
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server4 -> server5, Phase1a(ballot_num=0.30000000000000004))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server4 -> server3, Phase1a(ballot_num=0.30000000000000004))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server5 -> server4, Phase1a(ballot_num=0.4))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server5, Phase1b(ballot_num=0.4, accepted={1=PaxosServer.pvalue(ballot_num=0.2, slot_num=1, com=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1))}))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server5 -> server4, Phase1b(ballot_num=0.4, accepted={}))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server4 -> server5, Phase1b(ballot_num=0.4, accepted={}))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server4, Phase1b(ballot_num=0.4, accepted={1=PaxosServer.pvalue(ballot_num=0.2, slot_num=1, com=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1))}))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server5 -> server3, Heartbeat(cleared=0))
+[INFO   ] [2024-03-20 21:24:51] [] Distinguished: server5 ballot_num: 0.4
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server5 -> server4, Heartbeat(cleared=0))
+[INFO   ] [2024-03-20 21:24:51] [] Finish garbage collection by: server3
+[INFO   ] [2024-03-20 21:24:51] [] Finish PROPOSE by: server5
+[INFO   ] [2024-03-20 21:24:51] [] Finish garbage collection by: server4
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server5 -> server3, Phase2a(ballot_num=0.4, slot_num=1, com=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1)))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> server1, CheckActive())
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server5 -> server3, Phase2a(ballot_num=0.4, slot_num=2, com=AMOCommand(command=KVStore.Get(key=foo), sequenceNum=1, address=client2)))
+[INFO   ] [2024-03-20 21:24:51] [] Finish PROPOSE by: server5
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server5 -> server4, Phase2a(ballot_num=0.4, slot_num=1, com=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1)))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server5 -> server4, Phase2a(ballot_num=0.4, slot_num=2, com=AMOCommand(command=KVStore.Get(key=foo), sequenceNum=1, address=client2)))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> server3, Phase2aTimer(ballot_num=0.2, slot_num=2, com=AMOCommand(command=KVStore.Get(key=foo), sequenceNum=1, address=client2)))
+[INFO   ] [2024-03-20 21:24:51] [NEW DISTINGUISHED Leader] New distinguished leader: server5ballot_num:  0.4
+[INFO   ] [2024-03-20 21:24:51] [] FinishCheckActiveTimer
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server5, HeartbeatReply(slot_out=2))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server4 -> server5, HeartbeatReply(slot_out=2))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server5, Phase2b(ballot_num=0.4, slot_num=1))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server3 -> server5, Phase2b(ballot_num=0.4, slot_num=2))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server4 -> server5, Phase2b(ballot_num=0.4, slot_num=1))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> server5, HeartBeatTimer())
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server5 -> server3, Heartbeat(cleared=0))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server4 -> server5, Phase2b(ballot_num=0.4, slot_num=2))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server5 -> server4, Heartbeat(cleared=0))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> client1, ClientTimer(command=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1)))
+[INFO   ] [2024-03-20 21:24:51] [] Finish garbage collection by: server3
+[INFO   ] [2024-03-20 21:24:51] [Decision] Decision: Decision(slot=2, com=AMOCommand(command=KVStore.Get(key=foo), sequenceNum=1, address=client2))
+[INFO   ] [2024-03-20 21:24:51] [] Finish garbage collection by: server4
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> client1, ClientTimer(command=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1)))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] TimerReceive(-> server1, CheckActive())
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server5 -> server3, Decision(slot=2, com=AMOCommand(command=KVStore.Get(key=foo), sequenceNum=1, address=client2)))
+[FINER  ] [2024-03-20 21:24:51] [dslabs.framework.Node] MessageReceive(server5 -> server4, Decision(slot=2, com=AMOCommand(command=KVStore.Get(key=foo), sequenceNum=1, address=client2)))
+[INFO   ] [2024-03-20 21:24:52] [] Finish perform by: server4
+[FINER  ] [2024-03-20 21:24:52] [dslabs.framework.Node] TimerReceive(-> client1, ClientTimer(command=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1)))
+[INFO   ] [2024-03-20 21:24:52] [] FinishCheckActiveTimer
+[INFO   ] [2024-03-20 21:24:52] [] Finish perform by: server5
+[FINER  ] [2024-03-20 21:24:52] [dslabs.framework.Node] MessageReceive(server5 -> client2, PaxosReply(result=AMOResult(result=KVStore.GetResult(value=bar), sequenceNum=1, address=client2)))
+[INFO   ] [2024-03-20 21:24:52] [] Finish perform by: server3
+[FINER  ] [2024-03-20 21:24:52] [dslabs.framework.Node] TimerReceive(-> client1, ClientTimer(command=AMOCommand(command=KVStore.Put(key=foo, value=bar), sequenceNum=1, address=client1)))
+[FINER  ] [2024-03-20 21:24:52] [dslabs.framework.Node] MessageReceive(server3 -> server5, HeartbeatReply(slot_out=2))

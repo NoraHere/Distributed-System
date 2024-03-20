@@ -86,7 +86,7 @@ public final class PaxosClient extends Node implements Client {
    * ---------------------------------------------------------------------------------------------*/
   private synchronized void onClientTimer(ClientTimer t) {
     // Your code here...
-    AMOCommand comm=t.command;
+    AMOCommand comm=t.command();
     if(map2.containsKey(AMOCommand.getAddress(comm))&& (map2.get(AMOCommand.getAddress(comm))>=AMOCommand.getSequenceNum(comm)))return;
     for(Address add:servers){
       this.send(new PaxosRequest(comm),add);

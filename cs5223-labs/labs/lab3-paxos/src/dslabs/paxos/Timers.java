@@ -9,44 +9,27 @@ final class ClientTimer implements Timer {
   static final int CLIENT_RETRY_MILLIS = 100;
 
   // Your code here...
-  AMOCommand command;
-  public ClientTimer(AMOCommand com){
-    this.command=com;
-  }
+  private final AMOCommand command;
 }
 
 // Your code here...
+@Data
 class HeartBeatTimer implements Timer{
-  static final int RETRY_MILLIS=50;
+  static final int RETRY_MILLIS=20;
 }
+@Data
 class CheckActive implements Timer{
-  static final int RETRY_MILLIS=200;
+  static final int RETRY_MILLIS=150;
 }
+@Data
 class Phase1aTimer implements Timer{
-  static final int RETRY_MILLIS=50;
-  double num;
-  Phase1aTimer(double num){
-    this.num=num;
-  }
+  static final int RETRY_MILLIS=60;
+  private final double num;
 }
-//class ProposalTimer implements Timer{
-//  static final int RETRY_MILLIS=200;
-//  int slot_num;
-//  AMOCommand com;
-//  public ProposalTimer(int slot_num,AMOCommand com){
-//    this.slot_num=slot_num;
-//    this.com=com;
-//  }
-//}
-
+@Data
 class Phase2aTimer implements Timer{
-  static final int RETRY_MILLIS=50;
-  double ballot_num;
-  int slot_num;
-  AMOCommand com;
-  Phase2aTimer(double ballot_num,int slot_num,AMOCommand com){
-    this.ballot_num=ballot_num;
-    this.slot_num=slot_num;
-    this.com=com;
-  }
+  static final int RETRY_MILLIS=60;
+  private final double ballot_num;
+  private final int slot_num;
+  private final AMOCommand com;
 }

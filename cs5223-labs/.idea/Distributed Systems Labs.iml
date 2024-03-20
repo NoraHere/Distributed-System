@@ -13,6 +13,7 @@
       <sourceFolder url="file://$MODULE_DIR$/labs/lab3-paxos/tst" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/labs/lab4-shardedstore/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/labs/lab4-shardedstore/tst" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/doc" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/doc" />
       <excludeFolder url="file://$MODULE_DIR$/img" />
     </content>
