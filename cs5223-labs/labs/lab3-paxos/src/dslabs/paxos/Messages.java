@@ -27,7 +27,7 @@ class Phase1a implements Message{
 }
 @Data
 class Phase1b implements Message{
-  private final double ballot_num;
+  private final double ballot_num;//acceptor ballot number
   private final HashMap<Integer,pvalue> accepted;//{slot_num:pvalues<b,s,c>,...}
   //save decisions
 }

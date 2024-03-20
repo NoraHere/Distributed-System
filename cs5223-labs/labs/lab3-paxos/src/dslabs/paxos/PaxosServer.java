@@ -28,35 +28,30 @@ public class PaxosServer extends Node {
   // Your code here...
   private final Address address;//this address
   private boolean OneServer=false;
-  private Application app;
-  private AMOApplication application;
+  private final Application app;
+  private final AMOApplication application;
   private int cleared=0;//max cleared log num
   private HashMap<Integer,AMOCommand> decisions =new HashMap<>();//set of decisions
-  ///////replicas
-  private HashMap<Integer,AMOCommand> state=new HashMap<>();//applictaion state
+  private HashMap<Address,PaxosRequest> requests =new HashMap<>();//set of requests
+  //private HashMap<AMOCommand,AMOResult> results =new HashMap<>();//record results
   private int slot_in =1;//next propose
   private int slot_out =1;//next execute
   private AMOResult result;
-  private HashMap<Address,PaxosRequest> requests =new HashMap<>();//set of requests
-  private HashMap<AMOCommand,AMOResult> results =new HashMap<>();//record results
-
   //////acceptors
   private double a_ballot=0;
   private HashMap<Integer,pvalue> accepted =new HashMap<>();//{slot_num:pvalues<b,s,c>,...}
-
   //////leaders
   private int leader_number;//this.number
   private int seq_num=0;//seqnum
   private boolean isActive=false;//is active leader
+  private boolean election=false;//is in process of election
   private double l_ballot=0;
   private boolean dis_alive_f=false;
   private boolean dis_alive_s=false;
   private  boolean stop_phase1a_timer=false;
-  //private  boolean stop_phase2a_timer=false;
   private HashMap<Integer,AMOCommand> l_proposals =new HashMap<>();//set of proposals
   private HashMap<Address, Phase1b> phase1b_record=new HashMap<>();//record each server'phase1b reply
   private Multimap<Integer,Pair<Address, Phase2b>> phase2b_record= ArrayListMultimap.create();//record each server'phase2b reply
-  //private Multimap<Integer,Address> phase2b_enough= ArrayListMultimap.create();//slot:server
   private HashMap<Address,Integer> statistic=new HashMap<>();//count heartbeatReply and decide cleared
 
 
@@ -91,6 +86,7 @@ public class PaxosServer extends Node {
       double num=seq_num+0.1*leader_number;
       l_ballot=num;
       elect(num);
+      election=true;
     }
   }
 
@@ -154,7 +150,12 @@ public class PaxosServer extends Node {
       return null;
     }
     else{
-      return AMOCommand.getCommand(state.get(logSlotNum));
+      if(decisions.containsKey(logSlotNum)){
+        return AMOCommand.getCommand(decisions.get(logSlotNum));
+      }
+      else{
+        return AMOCommand.getCommand(accepted.get(logSlotNum).com);
+      }
     }
   }
 
@@ -170,6 +171,7 @@ public class PaxosServer extends Node {
    */
   public int firstNonCleared() {
     // Your code here...
+    //largest num of cleared/ accepted.keys/ decisions.keys
     return cleared+1;
   }
 
@@ -185,12 +187,9 @@ public class PaxosServer extends Node {
    */
   public int lastNonEmpty() {
     // Your code here...
-    if (state.isEmpty()) {return 0;}
-    int i = 1;
-    while (!Objects.equals(status(i), PaxosLogSlotStatus.EMPTY)) {
-      i++;
-    }
-    return i-1;
+    int num=Math.max(cleared,findMaxKey(decisions));
+    num=Math.max(num,findMaxKey(accepted));
+    return num;
   }
 
   /* -----------------------------------------------------------------------------------------------
@@ -200,12 +199,10 @@ public class PaxosServer extends Node {
     // Your code here...
     //As Leaders
     AMOCommand comm = m.command;
-    for (AMOCommand com : results.keySet()) {//check results ??already got results
-      if (com.equals(comm)) {
-        send(new PaxosReply(results.get(comm)), sender);
-        return;
-      }
-    }
+//    if(results.containsKey(comm)){//active_leader got results of m.command
+//      send(new PaxosReply(results.get(comm)), sender);
+//      return;
+//    }
     if (OneServer) {
       isActive=true;
       requests.put(sender,m);
@@ -291,7 +288,7 @@ public class PaxosServer extends Node {
       for (Integer key : keysToRemove) {
         l_proposals.remove(key);
       }
-      Logger.getLogger("NEW DISTINGUISHED Leader").info("New distinguished leader: " + this.address+"ballot_num:  "+l_ballot);
+      //Logger.getLogger("NEW DISTINGUISHED Leader").info("New distinguished leader: " + this.address+"ballot_num:  "+l_ballot);
 
     }
 }
@@ -318,7 +315,9 @@ public class PaxosServer extends Node {
     count_2(phase2b_record);
   }
   private void handleDecision(Decision message,Address sender){
-    perform(message);
+    if(!decisions.containsKey(message.slot())){//havn't performed
+      perform(message);
+    }
   }
   private void handleHeartbeat(Heartbeat message,Address sender){
     dis_alive_f=true;
@@ -369,16 +368,18 @@ private void onHeartBeatTimer(HeartBeatTimer t){
 
 private void onCheckActive(CheckActive t){
   if(isActive)return;//only follower leader need check active
+  if(election)return;//in process of election
   if(!dis_alive_f&&!dis_alive_s){//current distinguished leader dead
     seq_num++;
     double num=seq_num+0.1*leader_number;
     l_ballot=num;
     elect(num);
+    election=true;
   }
   set(t,CheckActive.RETRY_MILLIS);
+  Logger.getLogger("").info("FinishCheckActiveTimer by: "+this.address+ " leader_alive: "+ (dis_alive_s||dis_alive_f));
   dis_alive_s=dis_alive_f;
   dis_alive_f=false;
-  Logger.getLogger("").info("FinishCheckActiveTimer");
 }
 private void onPhase1aTimer(Phase1aTimer t){
   //AS Leaders
@@ -386,6 +387,7 @@ private void onPhase1aTimer(Phase1aTimer t){
   if(stop_phase1a_timer){return;}
   //phase1b_record.clear();
   elect(t.num());
+  election=true;
 }
 
 private void onPhase2aTimer(Phase2aTimer t){
@@ -403,17 +405,19 @@ private void count_1(HashMap<Address, Phase1b> record) {
   //Statistic
   HashMap<String, Integer> counts = new HashMap<>();//count majority
   for (Address add : record.keySet()) {//count
-    String key = Objects.equals(((Phase1b) record.get(add)).ballot_num(), l_ballot) ? "D" : "P";
+    String key = Objects.equals((record.get(add)).ballot_num(), l_ballot) ? "D" : "P";
     counts.put(key, counts.getOrDefault(key, 0) + 1);
   }
   if (counts.containsKey("P") && counts.get("P") > servers.length / 2) {//received majority
     isActive = false;
     stop_phase1a_timer = true;
+    election=false;
     set(new CheckActive(),CheckActive.RETRY_MILLIS);
   }
   else if (counts.containsKey("D") && counts.get("D") > servers.length / 2) {
     isActive = true;//New leader
     stop_phase1a_timer = true;
+    election=false;
     //broadcast HeartBeat to all leaders
     for (Address add : servers) {
       if (!add.equals(this.address)) {
@@ -421,16 +425,13 @@ private void count_1(HashMap<Address, Phase1b> record) {
       }
     }
     set(new HeartBeatTimer(),HeartBeatTimer.RETRY_MILLIS);//resend broadcast
-    Logger.getLogger("").info("Distinguished: " + this.address+" ballot_num: "+l_ballot);
+    Logger.getLogger("leader").info("Distinguished: " + this.address+" ballot_num: "+l_ballot);
   }
 }
 
   private void count_2(Multimap<Integer,Pair<Address,Phase2b>> phase2b_record) {
     //Statistic
     for (Integer slot_num : phase2b_record.keySet()) {
-      if(decisions.containsKey(slot_num)){
-        continue;
-      }
       if (phase2b_record.get(slot_num).size()
           > servers.length / 2) {//receive majority p2b of slot_num
         HashMap<String, Integer> counts = new HashMap<>();//count majority
@@ -441,12 +442,12 @@ private void count_1(HashMap<Address, Phase1b> record) {
           counts.put(key, counts.getOrDefault(key, 0) + 1);
         }
         if (counts.containsKey("P") && counts.get("P") > servers.length / 2) {
-          Logger.getLogger("Preempted").info( ""+this.address);
+          Logger.getLogger("leader").info( "Preempted"+this.address);
           isActive = false;
           set(new CheckActive(), CheckActive.RETRY_MILLIS);
         } else if (counts.containsKey("D") && counts.get("D") > servers.length / 2) {//Distinguished
           isActive = true;
-          if (l_proposals.containsKey(slot_num)) {//send decision of slot_num
+          if (l_proposals.containsKey(slot_num)&&!decisions.containsKey(slot_num)) {//send decision of slot_num
             AMOCommand comm = l_proposals.get(slot_num);
             Decision decision = new Decision(slot_num, comm);
             Logger.getLogger("Decision").info("Decision: " + decision);
@@ -502,12 +503,12 @@ private void count_1(HashMap<Address, Phase1b> record) {
     //pretend to receive decision (as self.replica)
     AMOCommand comm=decision.com();
     decisions.put(decision.slot(),comm);
-    state.put(decision.slot(),comm);//update state
+    //state.put(decision.slot(),comm);//update state
     //Logger.getLogger("State").info("State of: " +this.address+", "+ state);
 
-    while(state.containsKey(slot_out)){//execute
-      result=application.execute(state.get(slot_out));
-      results.put(state.get(slot_out),result);//record <AMOCommand,result>
+    while(decisions.containsKey(slot_out)){//execute
+      result=application.execute(decisions.get(slot_out));
+      //results.put(decisions.get(slot_out),result);//record <AMOCommand,result>
       //requests.remove(AMOResult.getAddress(result));//delete requests
       if(isActive){
         send(new PaxosReply(result),AMOResult.getAddress(result));
@@ -515,11 +516,12 @@ private void count_1(HashMap<Address, Phase1b> record) {
       slot_out++;
     }
     Logger.getLogger("").info("Finish perform by: "+this.address );
+    Logger.getLogger("").info("slot_out of: "+this.address +" = "+slot_out);
   }
   private void garbage_collect(Integer num){
     ///start garbage collection!!!!!
     for(int i=1;i<num+1;i++){
-      state.remove(i);
+
       decisions.remove(i);
       accepted.remove(i);
       phase2b_record.removeAll(i);
@@ -528,11 +530,20 @@ private void count_1(HashMap<Address, Phase1b> record) {
   }
   private void findSlot_in(){
     for(int i=slot_out;i<Integer.MAX_VALUE;i++){
-      if(!state.containsKey(i)){
+      if(!decisions.containsKey(i)){
         slot_in=i;
         return;
       }
     }
+  }
+  private static int findMaxKey(HashMap<Integer, ?> map) {
+    int maxKey = Integer.MIN_VALUE;
+    for (int key : map.keySet()) {
+      if (key > maxKey) {
+        maxKey = key;
+      }
+    }
+    return maxKey;
   }
   @Data
   final static class pvalue{
