@@ -541,7 +541,7 @@ private void count_1(HashMap<Address, Phase1b> record) {
   }
   private void findSlot_in(){
     for(int i=slot_out;i<Integer.MAX_VALUE;i++){
-      if(!decisions.containsKey(i)){
+      if(!decisions.containsKey(i)&&!accepted.containsKey(i)){
         slot_in=i;
         return;
       }
