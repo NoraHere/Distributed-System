@@ -29,7 +29,7 @@ class Phase1a implements Message{
 class Phase1b implements Message{
   private final double ballot_num;//acceptor ballot number
   private final HashMap<Integer,pvalue> accepted;//{slot_num:pvalues<b,s,c>,...}
-  //save decisions
+  private final HashMap<Integer,AMOCommand> decisions;//save decisions
 }
 @Data
 class Phase2a implements Message{

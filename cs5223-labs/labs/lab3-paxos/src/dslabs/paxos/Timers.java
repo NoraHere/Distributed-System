@@ -15,20 +15,20 @@ final class ClientTimer implements Timer {
 // Your code here...
 @Data
 class HeartBeatTimer implements Timer{
-  static final int RETRY_MILLIS=20;
+  static final int RETRY_MILLIS=30;
 }
 @Data
 class CheckActive implements Timer{
-  static final int RETRY_MILLIS=150;
+  static final int RETRY_MILLIS=200;
 }
 @Data
 class Phase1aTimer implements Timer{
-  static final int RETRY_MILLIS=60;
+  static final int RETRY_MILLIS=30;
   private final double num;
 }
 @Data
 class Phase2aTimer implements Timer{
-  static final int RETRY_MILLIS=60;
+  static final int RETRY_MILLIS=30;
   private final double ballot_num;
   private final int slot_num;
   private final AMOCommand com;
