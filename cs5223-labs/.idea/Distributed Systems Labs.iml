@@ -14,7 +14,13 @@
       <sourceFolder url="file://$MODULE_DIR$/labs/lab4-shardedstore/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/labs/lab4-shardedstore/tst" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/doc" isTestSource="false" />
-      <excludeFolder url="file://$MODULE_DIR$/doc" />
+      <sourceFolder url="file://$MODULE_DIR$" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/.idea" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/doc/dslabs" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/doc/dslabs/framework" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/doc/legal" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/jars" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/labs" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/img" />
     </content>
     <orderEntry type="inheritedJdk" />

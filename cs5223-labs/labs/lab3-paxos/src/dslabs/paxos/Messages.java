@@ -11,6 +11,7 @@ import lombok.Data;
 @Data
 class Heartbeat implements Message{
   private final int cleared;
+  private final double ballot;
 }
 @Data
 class HeartbeatReply implements Message{
