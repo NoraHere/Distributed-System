@@ -28,9 +28,10 @@ public class PaxosServer extends Node {
 
   // Your code here...
   private final Address address;//this address
-  private boolean OneServer=false;
   private final Application app;
   private final AMOApplication application;
+  private boolean OneServer=false;
+  private Address current_leader;
   private int cleared=0;//max cleared log num
   private HashMap<Integer,AMOCommand> decisions =new HashMap<>();//set of decisions
   private HashMap<Address,PaxosRequest> requests =new HashMap<>();//set of requests
@@ -205,7 +206,7 @@ public class PaxosServer extends Node {
 //      return;
 //    }
     if (OneServer) {
-      isActive=true;
+      isActive=true;current_leader=this.address;
       requests.put(sender,m);
       accepted.put(slot_in,new pvalue(l_ballot,slot_in,comm));
       perform(new Decision(slot_in,comm));
@@ -215,29 +216,25 @@ public class PaxosServer extends Node {
       //all leaders save requests{address:request}
       if ((!requests.containsKey(sender) || requests.get(sender) != m)
           &&!decisions.containsValue(comm)) {
-        for(pvalue pv:accepted.values()){
-          if(pv.com.equals(comm)){
+        for (pvalue pv : accepted.values()) {
+          if (pv.com.equals(comm)) {
             return;
           }
         }
         requests.put(sender, m);
       }
+
       //distinguished leader propose,and save in l_proposals{slot:command,...}
       if (isActive) {
-        if (!l_proposals.containsValue(comm)) {//never proposed
+        if (!l_proposals.containsValue(comm)&&!decisions.containsValue(comm)) {//never proposed
           findSlot_in();
           l_proposals.put(slot_in, comm);
           propose(l_ballot,slot_in,comm);
-
         }
-//        else {//has proposed and re-propose
-//          for (Integer num : l_proposals.keySet()) {
-//            if (Objects.equals(l_proposals.get(num), comm)) {
-//              //propose(l_ballot,num,comm);
-//            }
-//          }
-//        }
       }
+
+
+
     }
   }
 
@@ -255,7 +252,7 @@ public class PaxosServer extends Node {
     //AS Leaders
     for (Integer num:message.decisions().keySet()){//update decisions
       if(!decisions.containsKey(num)){
-        decisions.put(num,message.decisions().get(num));
+        perform(new Decision(num,message.decisions().get(num)));
       }
     }
     if(phase1b_record.containsKey(sender)//old messages
@@ -313,6 +310,7 @@ public class PaxosServer extends Node {
     if (Objects.equals(message.ballot_num(),a_ballot)){
       pvalue pv=new pvalue(message.ballot_num(),message.slot_num(),message.com());
       accepted.put(message.slot_num(),pv);
+      current_leader=sender;
     }
     send(new Phase2b(a_ballot,message.slot_num()),sender);
     //Logger.getLogger("Message").info(this.address+" Send P2b Message(b,s): " + a_ballot+", "+message.slot_num());
@@ -336,6 +334,10 @@ public class PaxosServer extends Node {
     }
   }
   private void handleHeartbeat(Heartbeat message,Address sender){
+    if(!Objects.equals(current_leader,null)&&!Objects.equals(sender,current_leader)){//sender is not current_leader
+      send(new HeartbeatReply(0),sender);
+      return;
+    }
     dis_alive_f=true;
     //stop_phase1a_timer=true;
     if(!Objects.equals(cleared,message.cleared())){
@@ -348,6 +350,9 @@ public class PaxosServer extends Node {
     //distinguished leader
     //int newcleared=cleared;//record change
     if(!isActive)return;
+    if(Objects.equals(message.slot_out(),0)){//realize self not current leader
+      return;
+    }
     //Sum up smallest slot_out among all reply
     statistic.put(this.address,slot_out);//add this.address to statistic
     statistic.put(sender,message.slot_out());//add this message
@@ -438,7 +443,7 @@ private void count_1(HashMap<Address, Phase1b> record) {
     set(new CheckActive(),CheckActive.RETRY_MILLIS);
   }
   else if (counts.containsKey("D") && counts.get("D") > servers.length / 2) {
-    isActive = true;//New leader
+    isActive = true;current_leader=this.address;
     stop_phase1a_timer = true;
     election=false;
     //broadcast HeartBeat to all leaders
@@ -470,7 +475,7 @@ private void count_1(HashMap<Address, Phase1b> record) {
           isActive = false;
           set(new CheckActive(), CheckActive.RETRY_MILLIS);
         } else if (counts.containsKey("D") && counts.get("D") > servers.length / 2) {//Distinguished
-          isActive = true;
+          //isActive = true;
           if (l_proposals.containsKey(slot_num)&&!decisions.containsKey(slot_num)) {//send decision of slot_num
             AMOCommand comm = l_proposals.get(slot_num);
             Decision decision = new Decision(slot_num, comm);
