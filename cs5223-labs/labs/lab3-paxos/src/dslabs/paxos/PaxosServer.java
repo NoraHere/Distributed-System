@@ -44,7 +44,7 @@ public class PaxosServer extends Node {
   //////leaders
   private int leader_number;//this.number
   private int seq_num=0;//seqnum
-  private boolean isActive=false;//is active leader
+  private boolean isActive = false;//is active leader
   private boolean election=false;//is in process of election
   private double l_ballot=0;
   private boolean dis_alive_f=false;
@@ -80,16 +80,15 @@ public class PaxosServer extends Node {
     else{
       for (int i=0;i<servers.length;i++){//generate leader_num
         if (Objects.equals(servers[i],this.address)) {
-          leader_number = i;
+          leader_number = i+1;//start from 1, server1: 0.1, ...
           break;
         }
       }
       double num=seq_num+0.1*leader_number;
       l_ballot=num;
       elect(num);
-      stop_phase1a_timer=false;//??
+      stop_phase1a_timer=false;
       election=true;
-      //set(new CheckActive(),CheckActive.RETRY_MILLIS);//????
     }
   }
 
@@ -243,6 +242,11 @@ public class PaxosServer extends Node {
     //AS Acceptors
     if(a_ballot<message.ballot_num()){
       a_ballot=message.ballot_num();
+      for(Integer num:message.accepted().keySet()){//???
+        if(!accepted.containsKey(num)){
+          accepted.put(num,message.accepted().get(num));
+        }
+      }
     }
     send(new Phase1b(a_ballot,accepted,decisions),sender);
     //Logger.getLogger("SendP1b in Phase1a").info("SendP1b(b,accepted): " + a_ballot+", "+accepted);
@@ -274,7 +278,10 @@ public class PaxosServer extends Node {
   }
 
   private void handlePhase2b(Phase2b message,Address sender){
-
+//    if(message.current_leader_b()>l_ballot){//???
+//      isActive = false;
+//      set(new CheckActive(), CheckActive.RETRY_MILLIS);
+//    }
     if (!isActive){return;}//As Distinguished Leaders
     // Logger.getLogger("Receive P2b").info("P2b(s,b): " + message.slot_num()+", "+message.ballot_num());
     Integer slot_num=message.slot_num();
@@ -315,11 +322,11 @@ public class PaxosServer extends Node {
         stop_phase1a_timer=true;
         set(new CheckActive(), CheckActive.RETRY_MILLIS);
       }
-      if(isActive) {//???
+      if(isActive) {
         isActive = false;
         a_ballot=message.ballot();
         dis_alive_f=true;
-        statistic.clear();//???
+        statistic.clear();
         set(new CheckActive(), CheckActive.RETRY_MILLIS);
       }
     }
@@ -327,10 +334,20 @@ public class PaxosServer extends Node {
       cleared=message.cleared();
       garbage_collect(cleared);
     }
-    send(new HeartbeatReply(slot_out),sender);
+
+    if(Objects.equals(current_leader_ballot,0.0)){//??????????
+      send(new HeartbeatReply(slot_out,a_ballot),sender);
+    }
+    else{
+      send(new HeartbeatReply(slot_out,current_leader_ballot),sender);
+    }
   }
   private void handleHeartbeatReply(HeartbeatReply message,Address sender){
     //distinguished leader
+    if(message.ballot()>l_ballot){//???
+      isActive = false;
+      set(new CheckActive(), CheckActive.RETRY_MILLIS);
+    }
     if(!isActive)return;
     //Sum up smallest slot_out among all reply
     statistic.put(this.address,slot_out);//add this.address to statistic
@@ -374,15 +391,14 @@ private void onHeartBeatTimer(HeartBeatTimer t){
 private void onCheckActive(CheckActive t){
 
   if(isActive){return;}//only follower leader need check active
-  if(election||!stop_phase1a_timer){return;}//in process of election, no matter if is new l_ballot///???
-  //if(stop_phase1a_timer){return;}//???
+  if(election||!stop_phase1a_timer){return;}//in process of election, no matter if is new l_ballot
   if(!dis_alive_f&&!dis_alive_s){//current distinguished leader dead
     seq_num++;
     double num=seq_num+0.1*leader_number;
     l_ballot=num;
     //Logger.getLogger("").info("Start new election(num): "+num +" by :"+this.address);
     elect(num);
-    stop_phase1a_timer=false;//???
+    stop_phase1a_timer=false;
     election=true;
   }
   set(t,CheckActive.RETRY_MILLIS);
@@ -395,8 +411,7 @@ private void onPhase1aTimer(Phase1aTimer t){
   if(isActive||stop_phase1a_timer){return;}
   //Logger.getLogger("").info("onPhase1aTimer of: " + this.address+" isActive: "+isActive+ " stop_p1a_timer "+stop_phase1a_timer);
   elect(t.num());
-  stop_phase1a_timer=false;//???
-  //election=true;//???
+  stop_phase1a_timer=false;
 }
 
 private void onPhase2aTimer(Phase2aTimer t){
@@ -431,7 +446,7 @@ private void count_1(HashMap<Address, Phase1b> record) {
   }
   else if (counts.containsKey("D") && counts.get("D") > servers.length / 2) {
     Logger.getLogger("").info("Distinguished Leader: "+this.address +", ballot: "+ l_ballot);
-    isActive = true;
+    isActive = true;//???
     current_leader_ballot=l_ballot;
     stop_phase1a_timer = true;
     election=false;
@@ -449,7 +464,7 @@ private void count_1(HashMap<Address, Phase1b> record) {
       if (!p1b.accepted().isEmpty()) {//accepted is not null
         // if (!Objects.equals(p1b.accepted(), null)) {//accepted is not null
         for (Integer slot_num : p1b.accepted().keySet()) {
-          if(decisions.containsKey(slot_num)||slot_num<=cleared){//???
+          if(decisions.containsKey(slot_num)||slot_num<=cleared){
             continue;
           }
           pvalue pv = p1b.accepted().get(slot_num);
@@ -496,7 +511,7 @@ private void count_1(HashMap<Address, Phase1b> record) {
           isActive = false; set(new CheckActive(), CheckActive.RETRY_MILLIS);
           Logger.getLogger("").info("isActive may changed: "+this.address+ " "+isActive);
         } else if (counts.containsKey("D") && counts.get("D") > servers.length / 2) {//Distinguished
-          //isActive = true;
+          isActive = true;
           if (l_proposals.containsKey(slot_num)&&!decisions.containsKey(slot_num)) {//send decision of slot_num
             AMOCommand comm = l_proposals.get(slot_num);
             Decision decision = new Decision(slot_num, comm);
@@ -517,10 +532,9 @@ private void count_1(HashMap<Address, Phase1b> record) {
     //phase1b_record.clear();
     for (Address add : servers){
       if (! add.equals(this.address)){//send phase1a to all acceptors
-        send(new Phase1a(num),add);
+        send(new Phase1a(num,accepted),add);
       }
     }
-    //stop_phase1a_timer=false;//???
     set(new Phase1aTimer(num),Phase1aTimer.RETRY_MILLIS);//resend p1a until active_leader
     //pretend to handle phase1a as self.acceptor
     if (a_ballot < l_ballot) {//repeated

@@ -16,6 +16,7 @@ class Heartbeat implements Message{
 @Data
 class HeartbeatReply implements Message{
   private final int slot_out;
+  private final double ballot;
 }
 @Data
 class Decision implements Message{
@@ -25,6 +26,7 @@ class Decision implements Message{
 @Data
 class Phase1a implements Message{
   private final double ballot_num;
+  private final HashMap<Integer,pvalue> accepted;//???
 }
 @Data
 class Phase1b implements Message{
