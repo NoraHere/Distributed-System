@@ -11,6 +11,7 @@ import dslabs.atmostonce.AMOResult;
 import dslabs.framework.Node;
 import java.io.Serializable;
 import java.util.ArrayList;
+import dslabs.kvstore.KVStore;
 import java.util.HashMap;
 import java.util.Objects;
 import lombok.Data;
@@ -28,8 +29,8 @@ public class PaxosServer extends Node {
 
   // Your code here...
   private final Address address;//this address
-  private final Application app;
-  private final AMOApplication application;
+  private Application app;
+  private AMOApplication application;
   private boolean OneServer=false;
   private int cleared=0;//max cleared log num
   private HashMap<Integer,AMOCommand> decisions =new HashMap<>();//set of decisions
@@ -54,7 +55,7 @@ public class PaxosServer extends Node {
   private HashMap<Address, Phase1b> phase1b_record=new HashMap<>();//record each server'phase1b reply
   private Multimap<Integer,Pair<Address, Phase2b>> phase2b_record= ArrayListMultimap.create();//record each server'phase2b reply
   private HashMap<Address,Integer> statistic=new HashMap<>();//count heartbeatReply and decide cleared
-
+  private Address sendAdd;
 
 
 
@@ -69,6 +70,14 @@ public class PaxosServer extends Node {
     this.address=address;
     this.app=app;
     application=new AMOApplication<>(this.app);
+  }
+
+  //for lab4
+  public PaxosServer(Address address,Address[] servers, Address sendAdd){
+    super(address);
+    this.servers=servers;
+    this.address=address;
+    this.sendAdd=sendAdd;
   }
 
   @Override
@@ -200,39 +209,45 @@ public class PaxosServer extends Node {
   private void handlePaxosRequest(PaxosRequest m, Address sender) {
     // Your code here...
     //As Leaders
-    AMOCommand comm = m.command;
-    if(application.alreadyExecuted(comm)){
-      send(new PaxosReply(application.execute(comm)),sender);
-      return;
-    }
-    if (OneServer) {
-      isActive = true;
-      current_leader_ballot=l_ballot;
-      requests.put(sender,m);
-      accepted.put(slot_in,new pvalue(l_ballot,slot_in,comm));
-      perform(new Decision(slot_in,comm));
-      slot_in++;
-    }
-    else {
-      //all leaders save requests{address:request}
-      if ((!requests.containsKey(sender) || requests.get(sender) != m)
-          &&!decisions.containsValue(comm)) {
-        for (pvalue pv : accepted.values()) {//command not in accepted/decisions/requests
-          if (pv.com.equals(comm)) {
-            return;
+    if(m.command instanceof AMOCommand){
+      AMOCommand comm =(AMOCommand) m.command;
+      if(!Objects.equals(application,null)&&application.alreadyExecuted(comm)){
+        send(new PaxosReply(application.execute(comm)),sender);
+        return;
+      }
+      if (OneServer) {
+        isActive = true;
+        current_leader_ballot=l_ballot;
+        requests.put(sender,m);
+        accepted.put(slot_in,new pvalue(l_ballot,slot_in,comm));
+        perform(new Decision(slot_in,comm));
+        slot_in++;
+      }
+      else {
+        //all leaders save requests{address:request}
+        if ((!requests.containsKey(sender) || requests.get(sender) != m)
+            &&!decisions.containsValue(comm)) {
+          for (pvalue pv : accepted.values()) {//command not in accepted/decisions/requests
+            if (pv.com.equals(comm)) {
+              return;
+            }
+          }
+          requests.put(sender, m);
+        }
+
+        //distinguished leader propose,and save in l_proposals{slot:command,...}
+        if (isActive) {
+          if (!l_proposals.containsValue(comm)&&!decisions.containsValue(comm)) {//never proposed
+            findSlot_in();
+            l_proposals.put(slot_in, comm);
+            propose(l_ballot,slot_in,comm);
           }
         }
-        requests.put(sender, m);
       }
-
-      //distinguished leader propose,and save in l_proposals{slot:command,...}
-      if (isActive) {
-        if (!l_proposals.containsValue(comm)&&!decisions.containsValue(comm)) {//never proposed
-          findSlot_in();
-          l_proposals.put(slot_in, comm);
-          propose(l_ballot,slot_in,comm);
-        }
-      }
+    }
+    else{//not AMOCommand, query
+      Logger.getLogger("").info("query_config: " + app.execute(m.command));
+      send(new PaxosReply(app.execute(m.command)),sender);//send back directly
     }
   }
 
@@ -482,7 +497,7 @@ private void count_1(HashMap<Address, Phase1b> record) {
     }
     //merge l_proposals with requests and propose
     for(PaxosRequest request:requests.values()){//combine with requests
-      AMOCommand comm=request.command;
+      AMOCommand comm=(AMOCommand) request.command;
       if(!l_proposals.containsValue(comm)&&!decisions.containsValue(comm)){
         findSlot_in();
         int slot=slot_in;
@@ -542,7 +557,7 @@ private void count_1(HashMap<Address, Phase1b> record) {
     }
     //pretend to receive phase1b as self.leader
     phase1b_record.put(this.address,new Phase1b(a_ballot,accepted,decisions));
-    Logger.getLogger("").info("Finish ELECT by: "+this.address );
+    Logger.getLogger("").info("Finish ELECT by: "+this.address+ " , "+num );
   }
   private void propose(Double num, Integer slot, AMOCommand comm){//active leader start phase2
     for (Address add : servers) {//send phase2a to all acceptors
@@ -571,11 +586,16 @@ private void count_1(HashMap<Address, Phase1b> record) {
     //Logger.getLogger("State").info("State of: " +this.address+", "+ state);
 
     while(decisions.containsKey(slot_out)){//execute
-      result=application.execute(decisions.get(slot_out));
-      //results.put(decisions.get(slot_out),result);//record <AMOCommand,result>
-      requests.remove(AMOResult.getAddress(result));//delete requests
-      if(isActive){
-        send(new PaxosReply(result),AMOResult.getAddress(result));
+      if(!Objects.equals(application,null)){
+        result=application.execute(decisions.get(slot_out));
+        //results.put(decisions.get(slot_out),result);//record <AMOCommand,result>
+        requests.remove(AMOResult.getAddress(result));//delete requests
+        if(isActive){
+          send(new PaxosReply(result),AMOResult.getAddress(result));
+        }
+      }
+      else{//subnode message won't drop
+        handleMessage(new PaxosRequest(decisions.get(slot_out)),sendAdd);//send back next AMOCommand
       }
       slot_out++;
     }
