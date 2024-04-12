@@ -11,8 +11,8 @@ import dslabs.atmostonce.AMOResult;
 import dslabs.framework.Node;
 import java.io.Serializable;
 import java.util.ArrayList;
-import dslabs.kvstore.KVStore;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Objects;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -38,7 +38,7 @@ public class PaxosServer extends Node {
   private int slot_in =1;//next propose
   private int slot_out =1;//next execute
   private AMOResult result;
-  private double current_leader_ballot;//server think current leader's ballot number
+  private double current_leader_ballot=0.0;//server think current leader's ballot number
   //////acceptors
   private double a_ballot=0;
   private HashMap<Integer,pvalue> accepted =new HashMap<>();//{slot_num:pvalues<b,s,c>,...}
@@ -47,7 +47,7 @@ public class PaxosServer extends Node {
   private int seq_num=0;//seqnum
   private boolean isActive = false;//is active leader
   private boolean election=false;//is in process of election
-  private double l_ballot=0;
+  private double l_ballot=0;//election number as leader
   private boolean dis_alive_f=false;
   private boolean dis_alive_s=false;
   private  boolean stop_phase1a_timer=false;
@@ -268,6 +268,7 @@ public class PaxosServer extends Node {
   }
   private void handlePhase1b(Phase1b message,Address sender){
     //AS Leaders
+    if(!election)return;//not elect anymore
     for (Integer num:message.decisions().keySet()){//update decisions
       if(!decisions.containsKey(num)){
         perform(new Decision(num,message.decisions().get(num)));
@@ -275,8 +276,9 @@ public class PaxosServer extends Node {
     }
     if(phase1b_record.containsKey(sender)//old messages
         &&(message.ballot_num()<=phase1b_record.get(sender).ballot_num())) {return;}
+    if(message.ballot_num()<l_ballot)return;//???
     phase1b_record.put(sender,message);
-    Logger.getLogger("").info("phase1b_record: " +this.address+" , "+ phase1b_record);
+    //Logger.getLogger("").info("phase1b_record: " +this.address+" , "+ phase1b_record);
     count_1(phase1b_record);
 }
 
@@ -298,6 +300,9 @@ public class PaxosServer extends Node {
 //      set(new CheckActive(), CheckActive.RETRY_MILLIS);
 //    }
     if (!isActive){return;}//As Distinguished Leaders
+    if(message.ballot_num()<l_ballot){//old messages
+      return;
+    }
     // Logger.getLogger("Receive P2b").info("P2b(s,b): " + message.slot_num()+", "+message.ballot_num());
     Integer slot_num=message.slot_num();
     Pair<Address, Phase2b> pair = Pair.of(sender, message);
@@ -305,16 +310,23 @@ public class PaxosServer extends Node {
       phase2b_record.put(slot_num, pair);
     } else{//contain slot_num
       boolean found=false;//found the sender
+      Pair<Address, Phase2b> toRemove=null;//???
       for(Pair<Address, Phase2b> pairs:phase2b_record.get(slot_num)){
         if(Objects.equals(sender,pairs.getLeft())){//has sender
           found=true;
           if(pairs.getRight().ballot_num()<message.ballot_num()){
-            phase2b_record.remove(slot_num,pairs);//remove old pair
-            phase2b_record.put(slot_num, pair);//put new pair
+            toRemove=pairs;
+//            copyList.remove(slot_num,pairs);//remove old pair
+//            copyList.put(slot_num, pair);//put new pair
           }
           break;
         }
       }
+      if(!Objects.equals(toRemove,null)){
+        phase2b_record.remove(slot_num, toRemove);
+        phase2b_record.put(slot_num,pair);
+      }
+
       if(!found){
         phase2b_record.put(slot_num, pair);
       }
@@ -322,19 +334,24 @@ public class PaxosServer extends Node {
     count_2(phase2b_record);
   }
   private void handleDecision(Decision message,Address sender){
-    if(!decisions.containsKey(message.slot())){//havn't performed
+    if(!decisions.containsKey(message.slot())&&message.slot()>cleared){//havn't performed
       perform(message);
     }
   }
   private void handleHeartbeat(Heartbeat message,Address sender){
-    if(message.ballot()>=a_ballot) {
+    if(message.ballot()>=current_leader_ballot&&message.ballot()>=a_ballot){//???
       dis_alive_f = true;
-      current_leader_ballot=message.ballot();//???
+      current_leader_ballot=message.ballot();
     }
+//    if(message.ballot()>=a_ballot) {
+//      dis_alive_f = true;
+//      current_leader_ballot=message.ballot();//???
+//    }
     if(message.ballot()>l_ballot){
       if(election){//stop election
         election=false;
         stop_phase1a_timer=true;
+        dis_alive_f=true;
         set(new CheckActive(), CheckActive.RETRY_MILLIS);
       }
       if(isActive) {
@@ -350,17 +367,20 @@ public class PaxosServer extends Node {
       garbage_collect(cleared);
     }
 
-    if(Objects.equals(current_leader_ballot,0.0)){//??????????
+    if(Objects.equals(current_leader_ballot,0.0)||election){//??????????
       send(new HeartbeatReply(slot_out,a_ballot),sender);
     }
     else{
       send(new HeartbeatReply(slot_out,current_leader_ballot),sender);
     }
+    //send(new HeartbeatReply(slot_out,current_leader_ballot),sender);//???
   }
   private void handleHeartbeatReply(HeartbeatReply message,Address sender){
     //distinguished leader
     if(message.ballot()>l_ballot){//???
       isActive = false;
+      //election=false;
+      dis_alive_f=false;
       set(new CheckActive(), CheckActive.RETRY_MILLIS);
     }
     if(!isActive)return;
@@ -412,9 +432,12 @@ private void onCheckActive(CheckActive t){
     double num=seq_num+0.1*leader_number;
     l_ballot=num;
     //Logger.getLogger("").info("Start new election(num): "+num +" by :"+this.address);
+    //current_leader_ballot=l_ballot;//think self is potential current_leader???
     elect(num);
     stop_phase1a_timer=false;
     election=true;
+    //phase1b_record.clear();???
+    return;
   }
   set(t,CheckActive.RETRY_MILLIS);
   Logger.getLogger("").info("FinishCheckActiveTimer by: "+this.address+ " leader_alive: "+ (dis_alive_s||dis_alive_f)+" a_ballot: "+a_ballot);
@@ -424,6 +447,7 @@ private void onCheckActive(CheckActive t){
 private void onPhase1aTimer(Phase1aTimer t){
   //AS Leaders
   if(isActive||stop_phase1a_timer){return;}
+  if(t.num()<l_ballot)return;
   //Logger.getLogger("").info("onPhase1aTimer of: " + this.address+" isActive: "+isActive+ " stop_p1a_timer "+stop_phase1a_timer);
   elect(t.num());
   stop_phase1a_timer=false;
@@ -434,6 +458,7 @@ private void onPhase2aTimer(Phase2aTimer t){
   if(!isActive){return;}
   if(decisions.containsKey(t.slot_num())){return;}
   if(t.slot_num()<=cleared)return;//old message
+  if(t.ballot_num()<l_ballot)return;//old propose
   propose(t.ballot_num(),t.slot_num(),t.com());
 
 }
@@ -453,7 +478,9 @@ private void count_1(HashMap<Address, Phase1b> record) {
   Logger.getLogger("").info("counts.P: "+this.address+ " : "+counts.getOrDefault("P",0));
   if (counts.containsKey("P") && counts.get("P") > servers.length / 2) {//received majority
     isActive = false;
-    Logger.getLogger("").info("isActive may changed: "+this.address+ " "+isActive);
+    Logger.getLogger("").info("Stop Phase1: "+this.address+ " and checkActive");
+    dis_alive_f=false;
+    dis_alive_s=false;
     set(new CheckActive(),CheckActive.RETRY_MILLIS);
     stop_phase1a_timer = true;
     election=false;
@@ -523,7 +550,10 @@ private void count_1(HashMap<Address, Phase1b> record) {
         }
         if (counts.containsKey("P") && counts.get("P") > servers.length / 2) {
           Logger.getLogger("").info( "Preempted"+this.address);
-          isActive = false; set(new CheckActive(), CheckActive.RETRY_MILLIS);
+          isActive = false;
+          dis_alive_f=false;
+          dis_alive_s=false;
+          set(new CheckActive(), CheckActive.RETRY_MILLIS);
           Logger.getLogger("").info("isActive may changed: "+this.address+ " "+isActive);
         } else if (counts.containsKey("D") && counts.get("D") > servers.length / 2) {//Distinguished
           isActive = true;
@@ -552,12 +582,24 @@ private void count_1(HashMap<Address, Phase1b> record) {
     }
     set(new Phase1aTimer(num),Phase1aTimer.RETRY_MILLIS);//resend p1a until active_leader
     //pretend to handle phase1a as self.acceptor
-    if (a_ballot < l_ballot) {//repeated
-      a_ballot = l_ballot;
+    if (a_ballot < num) {//repeated
+      a_ballot = num;
     }
     //pretend to receive phase1b as self.leader
     phase1b_record.put(this.address,new Phase1b(a_ballot,accepted,decisions));
     Logger.getLogger("").info("Finish ELECT by: "+this.address+ " , "+num );
+
+    //update phase1b_record???
+    List<Address> toRemove = new ArrayList<>();
+    for(Address add:phase1b_record.keySet()){
+      if(phase1b_record.get(add).ballot_num()<num){
+        toRemove.add(add);
+      }
+    }
+    for(Address add:toRemove){
+      phase1b_record.remove(add);
+    }
+    //Logger.getLogger("").info("latest phase1b_record of: "+this.address+ " , "+phase1b_record );
   }
   private void propose(Double num, Integer slot, AMOCommand comm){//active leader start phase2
     for (Address add : servers) {//send phase2a to all acceptors
@@ -576,7 +618,21 @@ private void count_1(HashMap<Address, Phase1b> record) {
     if (!phase2b_record.containsKey(slot) || !phase2b_record.get(slot).contains(pair)) {
       phase2b_record.put(slot, pair);
     }
-    Logger.getLogger("").info("Finish PROPOSE by: "+ this.address );
+    Logger.getLogger("").info("Finish PROPOSE by: "+ this.address+" , "+num );
+
+    //update phase2b_record???
+    List<Pair<Integer, Pair<Address, Phase2b>>> toRemove = new ArrayList<>();
+    for(Integer slots:phase2b_record.keySet()) {
+      for (Pair<Address, Phase2b> pairs : phase2b_record.get(slots)){
+        if(pairs.getRight().ballot_num()<l_ballot){
+          toRemove.add(Pair.of(slots, pairs));
+        }
+      }
+    }
+    for (Pair<Integer, Pair<Address, Phase2b>> removal : toRemove) {
+      phase2b_record.remove(removal.getLeft(), removal.getRight());
+    }
+
   }
   private void perform(Decision decision){//server deal with decision
     //pretend to receive decision (as self.replica)

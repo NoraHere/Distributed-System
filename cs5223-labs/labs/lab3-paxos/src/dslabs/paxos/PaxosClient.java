@@ -75,11 +75,13 @@ public final class PaxosClient extends Node implements Client {
    * ---------------------------------------------------------------------------------------------*/
   private synchronized void handlePaxosReply(PaxosReply m, Address sender) {
     // Your code here...
-    res = m.result;
-    //System.out.print("result of"+this.address()+": "+res);
-    if (Objects.equal(map2.get(AMOResult.getAddress(res)),AMOResult.getSequenceNum(res)))return;
-    map2.put(AMOResult.getAddress(res),AMOResult.getSequenceNum(res));
-    this.notify();
+    if(m.result instanceof AMOResult){
+      res = (AMOResult) m.result;
+      //System.out.print("result of"+this.address()+": "+res);
+      if (Objects.equal(map2.get(AMOResult.getAddress(res)),AMOResult.getSequenceNum(res)))return;
+      map2.put(AMOResult.getAddress(res),AMOResult.getSequenceNum(res));
+      this.notify();
+    }
   }
 
   /* -----------------------------------------------------------------------------------------------

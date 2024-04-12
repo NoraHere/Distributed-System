@@ -3,8 +3,6 @@ package dslabs.paxos;
 // Your code here...
 import dslabs.atmostonce.AMOCommand;
 import dslabs.framework.Message;
-import dslabs.framework.Address;
-import java.util.ArrayList;
 import java.util.HashMap;
 import dslabs.paxos.PaxosServer.pvalue;
 import lombok.Data;
