@@ -9,6 +9,7 @@ import dslabs.framework.Command;
 import dslabs.atmostonce.AMOCommand;
 import dslabs.atmostonce.AMOResult;
 import dslabs.framework.Node;
+import dslabs.framework.Result;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -69,7 +70,7 @@ public class PaxosServer extends Node {
     // Your code here...
     this.address=address;
     this.app=app;
-    application=new AMOApplication<>(this.app);
+    //application=new AMOApplication<>(this.app);
   }
 
   //for lab4
@@ -211,7 +212,7 @@ public class PaxosServer extends Node {
     //As Leaders
     if(m.command instanceof AMOCommand){
       AMOCommand comm =(AMOCommand) m.command;
-      if(!Objects.equals(application,null)&&application.alreadyExecuted(comm)){
+      if(!Objects.equals(application,null)&&application.alreadyExecuted(comm)){//paxos replica group
         send(new PaxosReply(application.execute(comm)),sender);
         return;
       }
@@ -246,8 +247,9 @@ public class PaxosServer extends Node {
       }
     }
     else{//not AMOCommand, query
-      Logger.getLogger("").info("query_config: " + app.execute(m.command));
-      send(new PaxosReply(app.execute(m.command)),sender);//send back directly
+      Result res=app.execute(m.command);
+      Logger.getLogger("").info("query_config: " + res);
+      send(new PaxosReply(res),sender);//send back directly
     }
   }
 
@@ -642,13 +644,28 @@ private void count_1(HashMap<Address, Phase1b> record) {
     //Logger.getLogger("State").info("State of: " +this.address+", "+ state);
 
     while(decisions.containsKey(slot_out)){//execute
-      if(!Objects.equals(application,null)){
-        result=application.execute(decisions.get(slot_out));
-        //results.put(decisions.get(slot_out),result);//record <AMOCommand,result>
-        requests.remove(AMOResult.getAddress(result));//delete requests
-        if(isActive){
-          send(new PaxosReply(result),AMOResult.getAddress(result));
+      Result result;
+      if(!Objects.equals(app,null)){
+        if(app instanceof AMOApplication<?>){
+          application=(AMOApplication<?>)app;
+          result=application.execute(decisions.get(slot_out));//AMOResult
+        }else{
+          result=app.execute(decisions.get(slot_out).command());//ShardMaster application
         }
+        ///result=application.execute(decisions.get(slot_out));
+        //results.put(decisions.get(slot_out),result);//record <AMOCommand,result>
+        AMOResult results;
+        if(result instanceof AMOResult){
+          results=(AMOResult)result;
+        }
+        else{//ShardMaster Result
+          results=new AMOResult(result,decisions.get(slot_out).sequenceNum(),decisions.get(slot_out).address());
+        }
+        requests.remove(AMOResult.getAddress(results));//delete requests
+        if(isActive){
+          send(new PaxosReply(result),AMOResult.getAddress(results));
+        }
+
       }
       else{//subnode message won't drop
         handleMessage(new PaxosRequest(decisions.get(slot_out)),sendAdd);//send back next AMOCommand

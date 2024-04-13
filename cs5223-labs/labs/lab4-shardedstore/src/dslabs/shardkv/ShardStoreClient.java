@@ -58,7 +58,11 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
     sequenceNum++;
     Set<Address> servers=findServers(command);
     this.comm= new AMOCommand(command,sequenceNum,this.address());
-    if(Objects.equal(servers,null)){
+    if(Objects.equal(servers,null)){//config==null
+      Query query=new Query(-1);//ask shardMaster current shards configuration
+      for(Address add:this.shardMasters()){
+        send(new PaxosRequest(query),add);
+      }
       return;//wait
     }
     for(Address add:servers){
@@ -105,11 +109,21 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
   // Your code here...
   private void handlePaxosReply(PaxosReply m,Address sender){
     //from shardMaster
-    if(m.result()instanceof ShardMaster.Error){
-      //wait
+    if(m.result() instanceof ShardMaster.Error){
+      //resend
+      Query query=new Query(-1);
+      for(Address add:this.shardMasters()){
+        send(new PaxosRequest(query),add);
+      }
     }
     else{
-      shardConfig= (ShardConfig) m.result();
+      ShardConfig newshardConfig= (ShardConfig) m.result();
+      if(Objects.equal(shardConfig,null)||newshardConfig.configNum()>shardConfig.configNum()){
+        shardConfig=newshardConfig;
+      }
+      if(!Objects.equal(this.comm,null)){//resend command
+        sendCommand(this.comm.command());
+      }
     }
   }
   /* -----------------------------------------------------------------------------------------------
@@ -118,13 +132,19 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
   private synchronized void onClientTimer(ClientTimer t) {
     // Your code here...
     AMOCommand comm= (AMOCommand) t.command();
+    if(map2.containsKey(AMOCommand.getAddress(comm))&& (map2.get(AMOCommand.getAddress(comm))>=AMOCommand.getSequenceNum(comm)))return;
     Set<Address> servers=findServers(AMOCommand.getCommand(comm));
     if(Objects.equal(servers,null)){
+      Query query=new Query(-1);//ask shardMaster current shards configuration
+      for(Address add:this.shardMasters()){
+        send(new PaxosRequest(query),add);
+      }
       return;//should not happen
     }
-    if(map2.containsKey(AMOCommand.getAddress(comm))&& (map2.get(AMOCommand.getAddress(comm))>=AMOCommand.getSequenceNum(comm)))return;
-    for(Address add:servers){
-      send(new ShardStoreRequest(t.command()),add);
+    else{
+      for(Address add:servers){
+        send(new ShardStoreRequest(t.command()),add);
+      }
     }
     set(t,ClientTimer.CLIENT_RETRY_MILLIS);
   }
@@ -150,6 +170,6 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
         return pairs.getLeft();
       }
     }
-    return null;
+    return null;//no found, should not happen
   }
 }

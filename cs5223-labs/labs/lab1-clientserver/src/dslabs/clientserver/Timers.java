@@ -1,6 +1,7 @@
 package dslabs.clientserver;
 
 import dslabs.framework.Timer;
+import dslabs.shardmaster.ShardMaster.Query;
 import lombok.Data;
 //self adding
 import dslabs.atmostonce.AMOCommand;

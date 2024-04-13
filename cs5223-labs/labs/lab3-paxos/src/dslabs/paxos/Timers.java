@@ -19,7 +19,7 @@ class HeartBeatTimer implements Timer{
 }
 @Data
 class CheckActive implements Timer{
-  static final int RETRY_MILLIS=60;
+  static final int RETRY_MILLIS=100;
 }
 @Data
 class Phase1aTimer implements Timer{

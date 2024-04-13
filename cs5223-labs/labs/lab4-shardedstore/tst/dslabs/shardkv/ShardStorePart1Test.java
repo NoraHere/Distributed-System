@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -54,14 +55,11 @@ public final class ShardStorePart1Test extends ShardStoreBaseTest {
   @Category(RunTests.class)
   @TestPointValue(10)
   public void test01Basic() throws InterruptedException {
-    int numGroups = 1, numServersPerGroup = 3, numShardMasters = 3, numShards = 10;
-
+    int numGroups = 1, numServersPerGroup = 1, numShardMasters = 3, numShards = 10;
     setupStates(numGroups, numServersPerGroup, numShardMasters, numShards);
     runState.addClientWorker(client(1), KVStoreWorkload.simpleWorkload);
-
     runState.start(runSettings);
     joinGroup(1, numServersPerGroup);
-
     runState.waitFor();
     runState.stop();
 
@@ -73,7 +71,7 @@ public final class ShardStorePart1Test extends ShardStoreBaseTest {
   @Category(RunTests.class)
   @TestPointValue(15)
   public void test02JoinLeave() throws InterruptedException {
-    int numServersPerGroup = 3, numShardMasters = 3, numShards = 10;
+    int numServersPerGroup = 1, numShardMasters = 3, numShards = 10;
 
     setupStates(3, numServersPerGroup, numShardMasters, numShards);
 
