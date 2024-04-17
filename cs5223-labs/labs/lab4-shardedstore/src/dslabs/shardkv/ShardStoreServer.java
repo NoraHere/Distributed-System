@@ -40,7 +40,7 @@ public class ShardStoreServer extends ShardStoreNode {
   private int myReConfigNum;
   private int sendReConfigNum;
   private Set<Integer> shards;//corresponding shards
-  private HashMap<Address,Boolean> Ack_record=new HashMap<>();
+  private HashMap<Address,Boolean> Ack_record;
   private int seqNum=0;//reConfig seqNum
   /* -----------------------------------------------------------------------------------------------
    *  Construction and Initialization
@@ -134,13 +134,8 @@ public class ShardStoreServer extends ShardStoreNode {
     if(m.succeed()&&Objects.equals(m.shardConfig().configNum(),sendReConfigNum)){
       Ack_record.put(sender,true);
     }
-    if(!Objects.equals(Ack_record,null)&&!Ack_record.containsValue(false)){//all ack
-      //groupId -> <group members, shard numbers>
-      Pair<Set<Address>, Set<Integer>> mayInfo=m.shardConfig().groupInfo().get(this.groupId);
-      if(!Objects.equals(mayInfo,null)){
-        shards=mayInfo.getRight();//update shards
-      }
-      Ack_record.clear();
+    if(!Ack_record.containsValue(false)){//all ack
+      shards=m.shardConfig().groupInfo().get(this.groupId).getRight();//update shards
     }
   }
   private void handleTransferConfig(TransferConfig m,Address sender){
@@ -174,7 +169,7 @@ public class ShardStoreServer extends ShardStoreNode {
     set(t,CheckInTimer.RERTY_MILLIS);
   }
   private void onTransferConfigTimer(TransferConfigTimer t){
-    if(!Objects.equals(Ack_record,null)&&!Ack_record.containsValue(false)){//all ack
+    if(!Ack_record.containsValue(false)){//all ack
       Ack_record.clear();
       return;
     }
