@@ -42,10 +42,7 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
   @Override
   public synchronized void init() {
     // Your code here...
-    Query query=new Query(-1);
-    for(Address add:this.shardMasters()){
-      send(new PaxosRequest(query),add);
-    }
+    checkIn();
     set(new CheckInTimer(),CheckInTimer.RERTY_MILLIS);
   }
 
@@ -59,10 +56,12 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
     Set<Address> servers=findServers(command);
     this.comm= new AMOCommand(command,sequenceNum,this.address());
     if(Objects.equal(servers,null)){
-      return;//wait
+      checkIn();
     }
-    for(Address add:servers){
-      send(new ShardStoreRequest(comm),add);
+    else{
+      for(Address add:servers){
+        send(new ShardStoreRequest(comm),add);
+      }
     }
     set(new ClientTimer(comm),ClientTimer.CLIENT_RETRY_MILLIS);
   }
@@ -88,10 +87,7 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
   private synchronized void handleShardStoreReply(ShardStoreReply m, Address sender) {
     // Your code here...
     if(!m.isTrue()){
-      Query query=new Query(-1);//ask shardMaster current shards configuration
-      for(Address add:this.shardMasters()){
-        send(new PaxosRequest(query),add);
-      }
+      checkIn();
     }
     else{
       res = m.result();
@@ -106,7 +102,7 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
   private void handlePaxosReply(PaxosReply m,Address sender){
     //from shardMaster
     if(m.result()instanceof ShardMaster.Error){
-      //wait
+      checkIn();
     }
     else{
       ShardConfig newshardConfig= (ShardConfig) m.result();
@@ -127,22 +123,27 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
     if(map2.containsKey(AMOCommand.getAddress(comm))&& (map2.get(AMOCommand.getAddress(comm))>=AMOCommand.getSequenceNum(comm)))return;
     Set<Address> servers=findServers(AMOCommand.getCommand(comm));
     if(Objects.equal(servers,null)){
-      return;//should not happen
+      checkIn();
     }
-    if(map2.containsKey(AMOCommand.getAddress(comm))&& (map2.get(AMOCommand.getAddress(comm))>=AMOCommand.getSequenceNum(comm)))return;
-    for(Address add:servers){
-      send(new ShardStoreRequest(t.command()),add);
+    else{
+      if(map2.containsKey(AMOCommand.getAddress(comm))&& (map2.get(AMOCommand.getAddress(comm))>=AMOCommand.getSequenceNum(comm)))return;
+      for(Address add:servers){
+        send(new ShardStoreRequest(t.command()),add);
+      }
     }
     set(t,ClientTimer.CLIENT_RETRY_MILLIS);
   }
 
   private void onCheckInTimer(CheckInTimer t){
     //periodically send query to shardMaster
+    checkIn();
+    set(t,CheckInTimer.RERTY_MILLIS);
+  }
+  private void checkIn(){
     Query query=new Query(-1);//ask shardMaster current shards configuration
     for(Address add:this.shardMasters()){
       send(new PaxosRequest(query),add);
     }
-    set(t,CheckInTimer.RERTY_MILLIS);
   }
   private Set<Address> findServers(Command command){
     if(Objects.equal(shardConfig,null)){

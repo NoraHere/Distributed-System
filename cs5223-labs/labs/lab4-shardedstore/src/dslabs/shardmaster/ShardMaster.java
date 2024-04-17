@@ -119,7 +119,7 @@ public final class ShardMaster implements Application {
         }
       }
       current_config=backup_config;
-      Logger.getLogger("").info("current_config: " + current_config);
+      Logger.getLogger("").info("current_config after join: " + current_config);
       config_records.add(config_num, new HashMap<>(current_config)); // Add a copy of current_config
       setGroupId.add(join.groupId);
       config_groups.add(config_num, new HashSet<>(setGroupId)); // Add a copy
@@ -162,7 +162,7 @@ public final class ShardMaster implements Application {
         checkBalance(backup_config,setGroupId);
         config_num++;
         current_config=backup_config;
-        Logger.getLogger("").info("current_config: " + current_config);
+        Logger.getLogger("").info("current_config after leave: " + current_config);
         config_records.add(config_num,new HashMap<>(current_config));
         config_groups.add(config_num, new HashSet<>(setGroupId));
         return new Ok();
@@ -180,7 +180,7 @@ public final class ShardMaster implements Application {
       else{
         config_num++;
         current_config.put(move.shardNum,move.groupId);
-        Logger.getLogger("").info("current_config: " + current_config);
+        Logger.getLogger("").info("current_config after move: " + current_config);
         config_records.add(config_num,new HashMap<>(current_config));
         config_groups.add(config_num,new HashSet<>(setGroupId));
         return new Ok();
@@ -197,6 +197,7 @@ public final class ShardMaster implements Application {
       HashMap<Integer,Integer>config;
       int num;
       Map<Integer, Pair<Set<Address>, Set<Integer>>> groupInfo=new HashMap<>();// groupId -> <group members, shard numbers>
+      //Logger.getLogger("").info("config_num: " + config_num);
       if(query.configNum>config_num||Objects.equals(query.configNum,-1)){//get config
         Logger.getLogger("").info("config_num: " + config_num);
         Logger.getLogger("").info("config_records: " + config_records);
@@ -206,9 +207,9 @@ public final class ShardMaster implements Application {
         config=config_records.get(query.configNum);
         num= query.configNum;;
       }
-      Logger.getLogger("").info("config_groups: " + config_groups);
-      Logger.getLogger("").info("config: " + config);
-      Logger.getLogger("").info("config_num: " + num);
+      //Logger.getLogger("").info("config_groups: " + config_groups);
+      //Logger.getLogger("").info("config in shardmaster: " + config);
+      //Logger.getLogger("").info("config_num: " + num);
       for (int groupId : config_groups.get(num)) {
         if (groupInfo.containsKey(groupId)) {
           continue;

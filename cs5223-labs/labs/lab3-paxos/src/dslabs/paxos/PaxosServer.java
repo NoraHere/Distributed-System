@@ -9,6 +9,9 @@ import dslabs.framework.Command;
 import dslabs.atmostonce.AMOCommand;
 import dslabs.atmostonce.AMOResult;
 import dslabs.framework.Node;
+import dslabs.framework.Result;
+import dslabs.shardmaster.ShardMaster.Query;
+import dslabs.shardmaster.ShardMaster.ShardMasterCommand;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -245,9 +248,10 @@ public class PaxosServer extends Node {
         }
       }
     }
-    else{//not AMOCommand, query
-      Logger.getLogger("").info("query_config: " + app.execute(m.command));
-      send(new PaxosReply(app.execute(m.command)),sender);//send back directly
+    if(m.command instanceof Query){//query
+      Result res=app.execute(m.command);
+      Logger.getLogger("").info("query_config: " + res);
+      send(new PaxosReply(res),sender);//send back directly
     }
   }
 
