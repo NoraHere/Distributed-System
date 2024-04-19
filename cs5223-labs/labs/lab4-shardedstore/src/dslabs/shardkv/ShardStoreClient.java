@@ -12,6 +12,8 @@ import dslabs.paxos.PaxosReply;
 import dslabs.paxos.PaxosRequest;
 import dslabs.shardkv.ShardStoreServer.reconfig;
 import dslabs.shardmaster.ShardMaster;
+import dslabs.shardmaster.ShardMaster.Leave;
+import dslabs.shardmaster.ShardMaster.Move;
 import dslabs.shardmaster.ShardMaster.Query;
 import dslabs.shardmaster.ShardMaster.ShardConfig;
 import java.util.HashMap;
@@ -106,6 +108,14 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
     }
     else{
       shardConfig= (ShardConfig) m.result();
+      //sendCommand(AMOCommand.getCommand(comm));
+      if(!Objects.equal(comm,null)){
+        if(map2.containsKey(AMOCommand.getAddress(comm))&& (map2.get(AMOCommand.getAddress(comm))>=AMOCommand.getSequenceNum(comm)))return;
+        Set<Address> servers=findServers(AMOCommand.getCommand(comm));
+        for(Address add:servers){
+          send(new ShardStoreRequest(comm),add);
+        }
+      }
     }
   }
   /* -----------------------------------------------------------------------------------------------
@@ -139,13 +149,25 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
     }
   }
   private Set<Address> findServers(Command command){
-    if(Objects.equal(shardConfig,null)){
+    if(Objects.equal(shardConfig,null)){// groupId -> <group members, shard numbers>
       return null;
     }
     SingleKeyCommand singleKeyCommand = (SingleKeyCommand) command;
     String key = singleKeyCommand.key();
     int theShard=keyToShard(key);
     Map<Integer, Pair<Set<Address>, Set<Integer>>> groupInfo=shardConfig.groupInfo();
+//    for(Integer groupId: groupInfo.keySet()){
+//      if(groupInfo.get(groupId).getRight().contains(theShard)){
+//        if(Objects.equal(groupInfo.get(groupId).getLeft(),null)){//this group has no servers
+//          Leave leave=new Leave(groupId);
+//          AMOCommand comm=new AMOCommand(leave,)
+//          for(Address add:this.shardMasters()){
+//            send(new PaxosRequest(leave),add);
+//          }
+//        }
+//      }
+//    }
+
     for(Pair<Set<Address>, Set<Integer>> pairs:groupInfo.values()){
       if(pairs.getRight().contains(theShard)){
         return pairs.getLeft();

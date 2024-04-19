@@ -15,11 +15,11 @@ final class ClientTimer implements Timer {
 // Your code here...
 @Data
 class HeartBeatTimer implements Timer{
-  static final int RETRY_MILLIS=20;
+  static final int RETRY_MILLIS=10;
 }
 @Data
 class CheckActive implements Timer{
-  static final int RETRY_MILLIS=60;
+  static final int RETRY_MILLIS=120;
 }
 @Data
 class Phase1aTimer implements Timer{

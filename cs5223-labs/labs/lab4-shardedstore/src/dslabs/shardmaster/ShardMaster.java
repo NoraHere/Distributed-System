@@ -29,9 +29,9 @@ public final class ShardMaster implements Application {
   // Your code here...
   private static int config_num;
   private HashMap<Integer,Integer> current_config=new HashMap<>();
-  private ArrayList<HashMap<Integer,Integer>> config_records= new ArrayList<>();//records[config_num]:groupId
+  private HashMap<Integer,HashMap<Integer,Integer>> config_records= new HashMap<>();//records[config_num]:groupId
   Set<Integer> setGroupId=new HashSet<>();
-  private ArrayList<Set<Integer>> config_groups=new ArrayList<>();//record[index=config_num] existing group
+  private HashMap<Integer,Set<Integer>> config_groups=new HashMap<>();//record[index=config_num]:existing group
   private HashMap<Integer,Set<Address>> group_records=new HashMap<>();//records[groupId]:server address
   private static int group_num=0;
 
@@ -120,9 +120,9 @@ public final class ShardMaster implements Application {
       }
       current_config=backup_config;
       Logger.getLogger("").info("current_config after join: " + current_config);
-      config_records.add(config_num, new HashMap<>(current_config)); // Add a copy of current_config
+      config_records.put(config_num, new HashMap<>(current_config)); // Add a copy of current_config
       setGroupId.add(join.groupId);
-      config_groups.add(config_num, new HashSet<>(setGroupId)); // Add a copy
+      config_groups.put(config_num, new HashSet<>(setGroupId)); // Add a copy
       group_records.put(join.groupId, join.servers);
       return new Ok();
     }
@@ -163,8 +163,8 @@ public final class ShardMaster implements Application {
         config_num++;
         current_config=backup_config;
         Logger.getLogger("").info("current_config after leave: " + current_config);
-        config_records.add(config_num,new HashMap<>(current_config));
-        config_groups.add(config_num, new HashSet<>(setGroupId));
+        config_records.put(config_num,new HashMap<>(current_config));
+        config_groups.put(config_num, new HashSet<>(setGroupId));
         return new Ok();
       }
     }
@@ -181,8 +181,8 @@ public final class ShardMaster implements Application {
         config_num++;
         current_config.put(move.shardNum,move.groupId);
         Logger.getLogger("").info("current_config after move: " + current_config);
-        config_records.add(config_num,new HashMap<>(current_config));
-        config_groups.add(config_num,new HashSet<>(setGroupId));
+        config_records.put(config_num,new HashMap<>(current_config));
+        config_groups.put(config_num,new HashSet<>(setGroupId));
         return new Ok();
       }
     }
@@ -194,41 +194,51 @@ public final class ShardMaster implements Application {
       if(config_records.isEmpty()){
         return new Error();
       }
-      HashMap<Integer,Integer>config;
-      int num;
-      Map<Integer, Pair<Set<Address>, Set<Integer>>> groupInfo=new HashMap<>();// groupId -> <group members, shard numbers>
-      //Logger.getLogger("").info("config_num: " + config_num);
-      if(query.configNum>config_num||Objects.equals(query.configNum,-1)){//get config
-        config=config_records.get(config_num);
-        num=config_num;
-      } else{
-        config=config_records.get(query.configNum);
-        num= query.configNum;;
-      }
-      //Logger.getLogger("").info("config_groups: " + config_groups);
-      //Logger.getLogger("").info("config in shardmaster: " + config);
-      //Logger.getLogger("").info("config_num: " + num);
-      for (int groupId : config_groups.get(num)) {
-        if (groupInfo.containsKey(groupId)) {
-          continue;
+      else{
+        HashMap<Integer,Integer>config;
+        int num;
+        Map<Integer, Pair<Set<Address>, Set<Integer>>> groupInfo=new HashMap<>();// groupId -> <group members, shard numbers>
+        Logger.getLogger("").info("config_num: " + config_num);
+        if(query.configNum>config_num||Objects.equals(query.configNum,-1)){//get config
+          config=config_records.get(config_num);
+          num=config_num;
         }
-        Set<Integer> shardNum = new HashSet<>();
-        for (int j = 1; j <= numShards; j++) {
-          if (Objects.equals(config.get(j), groupId)) {
-            shardNum.add(j);
-          }
+        else{
+          config=config_records.get(query.configNum);
+          num= query.configNum;;
         }
+        //Logger.getLogger("").info("config_groups: " + config_groups);
+        //Logger.getLogger("").info("config in shardmaster: " + config);
+        //Logger.getLogger("").info("config_num: " + num);
+        //System.out.print(num);
+        if(Objects.equals(config_records.get(num),null)){
+          Logger.getLogger("").info("num: " + num);
+          return new Error();
+        }
+        else{
+          for (int groupId : config_groups.get(num)) {
+            if (groupInfo.containsKey(groupId)) {
+              continue;
+            }
+            Set<Integer> shardNum = new HashSet<>();
+            for (int j = 1; j <= numShards; j++) {
+              if (Objects.equals(config.get(j), groupId)) {
+                shardNum.add(j);
+              }
+            }
 //        if(shardNum.isEmpty()){//set no leave but be removed groupId's shardNum to be null
 //          shardNum=null;
 //        }
-        Pair<Set<Address>, Set<Integer>> pair=Pair.of(group_records.get(groupId),shardNum);
-        groupInfo.put(groupId,pair);
-      }
+            Pair<Set<Address>, Set<Integer>> pair=Pair.of(group_records.get(groupId),shardNum);
+            groupInfo.put(groupId,pair);
+          }
 
-      if(query.configNum>config_num||Objects.equals(query.configNum,-1)){//return
-        return new ShardConfig(config_num,groupInfo);
-      } else{
-        return new ShardConfig(query.configNum,groupInfo);
+          if(query.configNum>config_num||Objects.equals(query.configNum,-1)){//return
+            return new ShardConfig(config_num,groupInfo);
+          } else{
+            return new ShardConfig(query.configNum,groupInfo);
+          }
+        }
       }
     }
 

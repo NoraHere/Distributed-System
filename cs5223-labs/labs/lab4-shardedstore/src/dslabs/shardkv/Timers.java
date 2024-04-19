@@ -1,5 +1,6 @@
 package dslabs.shardkv;
 
+import dslabs.atmostonce.AMOApplication;
 import dslabs.framework.Command;
 import dslabs.framework.Timer;
 import dslabs.shardmaster.ShardMaster.Query;
@@ -23,4 +24,5 @@ final class CheckInTimer implements Timer{
 final class TransferConfigTimer implements Timer{
   static final int RERTY_MILLIS=100;
   private final ShardConfig shardConfig;
+  private final AMOApplication<?> sendamoApplication;
 }

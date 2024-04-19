@@ -5,6 +5,8 @@ import dslabs.framework.Address;
 import dslabs.framework.Application;
 import dslabs.framework.Command;
 import dslabs.framework.Result;
+import dslabs.kvstore.KVStore;
+import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
@@ -12,7 +14,6 @@ import lombok.ToString;
 
 //adding
 import java.util.HashMap;
-
 
 @EqualsAndHashCode
 @ToString
@@ -22,13 +23,21 @@ public final class AMOApplication<T extends Application> implements Application 
 
 
   // Your code here...
-  HashMap<Address,AMOResult> map3=new HashMap<Address,AMOResult>();
+  @Getter private HashMap<Address,AMOResult> map3=new HashMap<Address,AMOResult>();
 
   public AMOApplication(T application) {
     this.application = application;
   }
 
-
+  public AMOApplication(AMOApplication<T> other) {//newly add
+    if(other.application instanceof KVStore){
+      this.application= (T) new KVStore((KVStore) other.application);
+      map3 = new HashMap<>(other.map3);
+    }
+    else{
+      application=other.application;//shallow copy
+    }
+  }
 
   @Override
   public AMOResult execute(Command command) {
@@ -71,5 +80,9 @@ public final class AMOApplication<T extends Application> implements Application 
     if(map3.containsKey(amoCommand.address())&& map3.get(amoCommand.address()).sequenceNum()>=amoCommand.sequenceNum()) return true;//old request
 
     return false;
+  }
+
+  public AMOApplication<T> copy() {
+    return new AMOApplication<>(this.application);
   }
 }

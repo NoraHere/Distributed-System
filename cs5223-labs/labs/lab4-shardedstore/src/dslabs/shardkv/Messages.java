@@ -28,7 +28,7 @@ final class ShardStoreReply implements Message {
 final class TransferConfig implements Message{
   //private final HashMap<Integer,Integer> record;
   private final ShardConfig shardConfig;
-  private final AMOApplication<KVStore> amoApplication;
+  private final AMOApplication<?> amoApplication;
 }
 @Data
 final class ACKReconfig implements Message{

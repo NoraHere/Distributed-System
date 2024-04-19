@@ -14,6 +14,7 @@ import dslabs.shardmaster.ShardMaster.Query;
 import dslabs.shardmaster.ShardMaster.ShardMasterCommand;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
@@ -289,8 +290,12 @@ public class PaxosServer extends Node {
   private void handlePhase2a(Phase2a message,Address sender){
     //AS Acceptors
     //sender think it is active leader
+    if(message.ballot_num()>=a_ballot){
+      dis_alive_f=true;//???
+    }
     if (Objects.equals(message.ballot_num(),a_ballot)){
       current_leader_ballot=message.ballot_num();//???
+
       pvalue pv=new pvalue(message.ballot_num(),message.slot_num(),message.com());
       accepted.put(message.slot_num(),pv);
     }
@@ -335,7 +340,15 @@ public class PaxosServer extends Node {
         phase2b_record.put(slot_num, pair);
       }
     }
-    count_2(phase2b_record);
+    Multimap<Integer, Pair<Address, Phase2b>> copy = ArrayListMultimap.create();
+
+    for (Integer key : phase2b_record.keySet()) {//deep copy of phase2b_record
+      Collection<Pair<Address, Phase2b>> pairs = phase2b_record.get(key);
+      for (Pair<Address, Phase2b> newpair : pairs) {
+        copy.put(key, newpair);
+      }
+    }
+    count_2(copy);
   }
   private void handleDecision(Decision message,Address sender){
     if(!decisions.containsKey(message.slot())&&message.slot()>cleared){//havn't performed
