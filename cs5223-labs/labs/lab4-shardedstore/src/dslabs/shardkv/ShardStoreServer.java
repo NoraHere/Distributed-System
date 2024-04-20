@@ -50,6 +50,7 @@ public class ShardStoreServer extends ShardStoreNode {
   private boolean firstTime=true;
   private boolean allReceived=false;//successful received all shards
   LinkedList<Command> commandList = new LinkedList<>();
+  private boolean duringReconfiguration=false;
   /* -----------------------------------------------------------------------------------------------
    *  Construction and Initialization
    * ---------------------------------------------------------------------------------------------*/
@@ -96,6 +97,9 @@ public class ShardStoreServer extends ShardStoreNode {
         SingleKeyCommand singleKeyCommand = (SingleKeyCommand) AMOCommand.getCommand(comm);
         String key = singleKeyCommand.key();
         int theShard = keyToShard(key);
+        if(duringReconfiguration){//don't deal with client's request???
+          return;
+        }
         if (!shards.contains(theShard)) {//not responsible for this request
           res = new AMOResult(null, AMOCommand.getSequenceNum(comm), AMOCommand.getAddress(comm));
           send(new ShardStoreReply(res, false), sender);
@@ -155,14 +159,8 @@ public class ShardStoreServer extends ShardStoreNode {
   }
   private void handlePaxosRequest(PaxosRequest m,Address sender){
     //this is reply from local paxos: next operation to execute
-    commandList.add(m.command());
-    AMOCommand comm=(AMOCommand) m.command();
-    if(AMOCommand.getCommand(comm) instanceof ShardStoreServer.reconfig){
-      reconfig newreconfig= (ShardStoreServer.reconfig) AMOCommand.getCommand(comm);
-      reconfiguration(newreconfig.shardConfig);
-    }
-    else if (AMOCommand.getCommand(comm) instanceof ShardStoreServer.ackReconfig) {//all ack
-      ackReconfig ack=((ackReconfig) AMOCommand.getCommand(comm));
+    if (AMOCommand.getCommand((AMOCommand) m.command()) instanceof ShardStoreServer.ackReconfig) {//all ack
+      ackReconfig ack=((ackReconfig) AMOCommand.getCommand((AMOCommand) m.command()));
       int mayAckReConfigNum=ack.shardConfig.configNum();//record current ackReConfigNum
       if(mayAckReConfigNum>ackReConfigNum&&Objects.equals(groupId,ack.groupId)){
         ackReConfigNum=mayAckReConfigNum;
@@ -197,18 +195,18 @@ public class ShardStoreServer extends ShardStoreNode {
 //            amoApplication_records.remove(shard);
 //          }
 //        }
+        duringReconfiguration=false;//stop reconfiguration process
+        commandList.removeFirst();
+        if(!commandList.isEmpty()){
+          executeCommandList();
+        }
       }
     }
     else{
-      int theShard=findTheShard(AMOCommand.getCommand(comm));
-      if(Objects.equals(amoApplication_records.get(theShard),null)){//should not happen
-        checkIn();
-        return;
-      }
-      res=amoApplication_records.get(theShard).execute(m.command());
-      //res=amoApplication.execute(m.command());
-      send(new ShardStoreReply(res,true),AMOResult.getAddress(res));//send back to client
+      commandList.add(m.command());
+      executeCommandList();
     }
+
   }
   private void handleACKReconfig(ACKReconfig m,Address sender){
     //sender server receive ACKReconfig
@@ -423,6 +421,30 @@ public class ShardStoreServer extends ShardStoreNode {
     }
     //set(new TransferConfigTimer(shardConfig,sendamoApplication),TransferConfigTimer.RERTY_MILLIS);
     //Logger.getLogger("").info(this.address()+" transfer amoapplication_record: "+ amoApplication_records);
+  }
+  private void executeCommandList(){
+    AMOCommand comm=(AMOCommand) commandList.getFirst();//firstCommand
+    if(AMOCommand.getCommand(comm) instanceof ShardStoreServer.reconfig){
+      if(!duringReconfiguration){
+        reconfig newreconfig= (ShardStoreServer.reconfig) AMOCommand.getCommand(comm);
+        reconfiguration(newreconfig.shardConfig);
+        duringReconfiguration=true;
+      }
+    }
+    else{
+      int theShard=findTheShard(AMOCommand.getCommand(comm));
+      if(Objects.equals(amoApplication_records.get(theShard),null)){//should not happen
+        checkIn();
+        return;
+      }
+      res=amoApplication_records.get(theShard).execute(comm);
+      //res=amoApplication.execute(m.command());
+      send(new ShardStoreReply(res,true),AMOResult.getAddress(res));//send back to client
+      commandList.removeFirst();
+      if(!commandList.isEmpty()){
+        executeCommandList();
+      }
+    }
   }
   private int findTheShard(Command comm){
     SingleKeyCommand singleKeyCommand = (SingleKeyCommand) comm;

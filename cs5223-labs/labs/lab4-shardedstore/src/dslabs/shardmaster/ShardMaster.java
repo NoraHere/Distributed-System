@@ -91,18 +91,24 @@ public final class ShardMaster implements Application {
 
       // Your code here...
       HashMap<Integer,Integer> backup_config=new HashMap<>(current_config);
-      if(config_records.isEmpty()||Objects.equals(group_num,0)){//initial state
-        group_num=1;
+
+      if(config_records.isEmpty()&&setGroupId.isEmpty()){//initial state
+        //group_num=1;
         config_num=INITIAL_CONFIG_NUM;
         for(int i=1 ;i<=numShards;i++){
           backup_config.put(i,join.groupId);
         }
-      } else{
+        setGroupId.add(join.groupId);
+        group_num=setGroupId.size();
+      }
+      else{
         if(backup_config.containsValue(join.groupId)){//groupId already exist
           return new Error();
         }
         else {
-          group_num++;
+          //group_num++;
+          setGroupId.add(join.groupId);
+          group_num=setGroupId.size();
 //          if(Objects.equals(group_num,0)){
 //            System.out.print("group_num: "+group_num);
 //          }
@@ -124,7 +130,6 @@ public final class ShardMaster implements Application {
       current_config=backup_config;
       Logger.getLogger("").info("current_config after join: " + current_config);
       config_records.put(config_num, new HashMap<>(current_config)); // Add a copy of current_config
-      setGroupId.add(join.groupId);
       config_groups.put(config_num, new HashSet<>(setGroupId)); // Add a copy
       group_records.put(join.groupId, join.servers);
       return new Ok();
@@ -135,11 +140,13 @@ public final class ShardMaster implements Application {
 
       // Your code here...
       HashMap<Integer,Integer> backup_config=new HashMap<>(current_config);
-      if(!backup_config.containsValue(leave.groupId)||Objects.equals(group_num,0)){
+      if(!backup_config.containsValue(leave.groupId)||!setGroupId.contains(leave.groupId)){
         return new Error();
       }
       else{
-        group_num--;
+        setGroupId.remove(leave.groupId); // Remove the group ID from the set
+        group_num=setGroupId.size();
+        //group_num--;
         HashMap<Integer,Integer> count_group=countHashMap(backup_config);//count occurrence of each groupId
         int even=count_group.get(leave.groupId);
         for(Integer num:backup_config.keySet()){//remove the groupId to null
@@ -147,7 +154,7 @@ public final class ShardMaster implements Application {
             backup_config.put(num,null);
           }
         }
-        setGroupId.remove(leave.groupId); // Remove the group ID from the set
+
         while(even>0){
           int number=findMaxOrMinValue(count_group,false);//groupId
           //int num=findKey(backup_config,number);//shard number
