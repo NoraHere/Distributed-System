@@ -60,7 +60,13 @@ public class KVStore implements Application {
     }
 
     // Your code here...
-    private final HashMap<String,String> map0= new HashMap<>();//result
+    private HashMap<String,String> map0= new HashMap<>();//result
+    public KVStore() {//newly add
+        this.map0 = new HashMap<>();
+    }
+    public KVStore(KVStore other) {//newly add
+        map0 = new HashMap<>(other.map0); // Deep copy of the HashMap
+    }
 
     @Override
     public synchronized KVStoreResult execute(Command command) {
