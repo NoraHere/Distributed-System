@@ -117,7 +117,10 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
 //        }
 //      }
 //      tryNext=false;
-      shardConfig= (ShardConfig) m.result();
+      ShardConfig mayshardConfig= (ShardConfig) m.result();
+      if(Objects.equal(shardConfig,null)||(!Objects.equal(mayshardConfig,null)&&mayshardConfig.configNum()>shardConfig.configNum())){
+        shardConfig=mayshardConfig;
+      }
       //sendCommand(AMOCommand.getCommand(comm));
       if(!Objects.equal(comm,null)){
         if(map2.containsKey(AMOCommand.getAddress(comm))&& (map2.get(AMOCommand.getAddress(comm))>=AMOCommand.getSequenceNum(comm)))return;
@@ -125,8 +128,10 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
         if(Objects.equal(servers,null)){
           Logger.getLogger("").info(this.address()+" servers not found, command: "+comm);
         }
-        for(Address add:servers){
-          send(new ShardStoreRequest(comm),add);
+        else{
+          for(Address add:servers){
+            send(new ShardStoreRequest(comm),add);
+          }
         }
       }
     }

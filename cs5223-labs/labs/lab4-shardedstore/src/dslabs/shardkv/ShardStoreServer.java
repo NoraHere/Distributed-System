@@ -17,6 +17,7 @@ import dslabs.shardmaster.ShardMaster.ShardConfig;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -48,6 +49,7 @@ public class ShardStoreServer extends ShardStoreNode {
   private int seqNum=0;//reConfig seqNum
   private boolean firstTime=true;
   private boolean allReceived=false;//successful received all shards
+  LinkedList<Command> commandList = new LinkedList<>();
   /* -----------------------------------------------------------------------------------------------
    *  Construction and Initialization
    * ---------------------------------------------------------------------------------------------*/
@@ -153,6 +155,7 @@ public class ShardStoreServer extends ShardStoreNode {
   }
   private void handlePaxosRequest(PaxosRequest m,Address sender){
     //this is reply from local paxos: next operation to execute
+    commandList.add(m.command());
     AMOCommand comm=(AMOCommand) m.command();
     if(AMOCommand.getCommand(comm) instanceof ShardStoreServer.reconfig){
       reconfig newreconfig= (ShardStoreServer.reconfig) AMOCommand.getCommand(comm);
