@@ -24,5 +24,6 @@ final class CheckInTimer implements Timer{
 final class TransferConfigTimer implements Timer{
   static final int RERTY_MILLIS=100;
   private final ShardConfig shardConfig;
-  private final AMOApplication<?> sendamoApplication;
+//  private final AMOApplication<?> amoApplication;
+//  private final int theShard;
 }

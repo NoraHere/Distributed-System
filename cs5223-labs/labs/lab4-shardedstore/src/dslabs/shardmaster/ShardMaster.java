@@ -91,7 +91,7 @@ public final class ShardMaster implements Application {
 
       // Your code here...
       HashMap<Integer,Integer> backup_config=new HashMap<>(current_config);
-      if(config_records.isEmpty()){//initial state
+      if(config_records.isEmpty()||Objects.equals(group_num,0)){//initial state
         group_num=1;
         config_num=INITIAL_CONFIG_NUM;
         for(int i=1 ;i<=numShards;i++){
@@ -103,14 +103,17 @@ public final class ShardMaster implements Application {
         }
         else {
           group_num++;
+//          if(Objects.equals(group_num,0)){
+//            System.out.print("group_num: "+group_num);
+//          }
           int even = numShards / group_num;//new groupId should exist (even) times
           while (even > 0) {
             HashMap<Integer,Integer> count_group=countHashMap(backup_config);
             int number = findMaxOrMinValue(count_group,true);//groupId
             int num=findKey(backup_config,number);//shard number
-            if(Objects.equals(num,0)){
-              return new Error();//should not happen
-            }
+//            if(Objects.equals(num,0)){
+//              return new Error();//should not happen
+//            }
             backup_config.put(num, join.groupId);
             even--;
           }
@@ -132,7 +135,7 @@ public final class ShardMaster implements Application {
 
       // Your code here...
       HashMap<Integer,Integer> backup_config=new HashMap<>(current_config);
-      if(!backup_config.containsValue(leave.groupId)){
+      if(!backup_config.containsValue(leave.groupId)||Objects.equals(group_num,0)){
         return new Error();
       }
       else{
@@ -147,13 +150,14 @@ public final class ShardMaster implements Application {
         setGroupId.remove(leave.groupId); // Remove the group ID from the set
         while(even>0){
           int number=findMaxOrMinValue(count_group,false);//groupId
-          int num=findKey(backup_config,number);//shard number
-          if(Objects.equals(num,0)){
-            return new Error();//should not happen
-          }
+          //int num=findKey(backup_config,number);//shard number
+          //System.out.print("num: "+ num);
+//          if(Objects.equals(num,0)){
+//            return new Error();//should not happen
+//          }
           for(Integer index:backup_config.keySet()){
             if(Objects.equals(backup_config.get(index),null)){//replace null to the smallest occurrence groupId
-              backup_config.put(index,backup_config.get(num));
+              backup_config.put(index,number);
               even--;
               break;
             }
@@ -174,7 +178,7 @@ public final class ShardMaster implements Application {
 
       // Your code here...
       if(Objects.equals(current_config.get(move.shardNum),move.groupId)||!current_config.containsKey(move.shardNum)
-          ||!current_config.containsValue(move.groupId)){
+          ||!current_config.containsValue(move.groupId)||Objects.equals(group_num,0)){
         return new Error();
       }
       else{
@@ -211,7 +215,7 @@ public final class ShardMaster implements Application {
         //Logger.getLogger("").info("config in shardmaster: " + config);
         //Logger.getLogger("").info("config_num: " + num);
         //System.out.print(num);
-        if(Objects.equals(config_records.get(num),null)){
+        if(Objects.equals(config_records.get(num),null)||Objects.equals(config_groups.get(num),null)){
           Logger.getLogger("").info("num: " + num);
           return new Error();
         }

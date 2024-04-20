@@ -29,9 +29,11 @@ final class TransferConfig implements Message{
   //private final HashMap<Integer,Integer> record;
   private final ShardConfig shardConfig;
   private final AMOApplication<?> amoApplication;
+  private final int theShard;
 }
 @Data
 final class ACKReconfig implements Message{
   private final boolean succeed;//true is successful received transfer
   private final ShardConfig shardConfig;
+  private final int theShard;
 }

@@ -19,6 +19,7 @@ import dslabs.shardmaster.ShardMaster.ShardConfig;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import org.apache.commons.lang3.tuple.Pair;
@@ -33,6 +34,7 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
   private PaxosRequest req;
   HashMap<Address,Integer> map2=new HashMap< Address,Integer>();//record (Address,seqNum)
   ShardConfig shardConfig;
+  boolean tryNext=false;
 
   /* -----------------------------------------------------------------------------------------------
    *  Construction and Initialization
@@ -88,8 +90,9 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
    * ---------------------------------------------------------------------------------------------*/
   private synchronized void handleShardStoreReply(ShardStoreReply m, Address sender) {
     // Your code here...
-    if(!m.isTrue()){
+    if(Objects.equal(AMOResult.getSequenceNum(m.result()),sequenceNum)&&!m.isTrue()){
       checkIn();
+      tryNext=true;
     }
     else{
       res = m.result();
@@ -107,11 +110,21 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
       checkIn();
     }
     else{
+//      if(tryNext){
+//        if(Objects.equal((ShardConfig)m.result(),shardConfig)){//retry
+//          checkIn();
+//          return;
+//        }
+//      }
+//      tryNext=false;
       shardConfig= (ShardConfig) m.result();
       //sendCommand(AMOCommand.getCommand(comm));
       if(!Objects.equal(comm,null)){
         if(map2.containsKey(AMOCommand.getAddress(comm))&& (map2.get(AMOCommand.getAddress(comm))>=AMOCommand.getSequenceNum(comm)))return;
         Set<Address> servers=findServers(AMOCommand.getCommand(comm));
+        if(Objects.equal(servers,null)){
+          Logger.getLogger("").info(this.address()+" servers not found, command: "+comm);
+        }
         for(Address add:servers){
           send(new ShardStoreRequest(comm),add);
         }
@@ -127,6 +140,7 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
     Set<Address> servers=findServers(AMOCommand.getCommand(comm));
     if(Objects.equal(servers,null)){
       checkIn();
+      Logger.getLogger("").info(this.address()+" servers not found, command: "+comm);
     }
     else{
       if(map2.containsKey(AMOCommand.getAddress(comm))&& (map2.get(AMOCommand.getAddress(comm))>=AMOCommand.getSequenceNum(comm)))return;
@@ -156,17 +170,6 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
     String key = singleKeyCommand.key();
     int theShard=keyToShard(key);
     Map<Integer, Pair<Set<Address>, Set<Integer>>> groupInfo=shardConfig.groupInfo();
-//    for(Integer groupId: groupInfo.keySet()){
-//      if(groupInfo.get(groupId).getRight().contains(theShard)){
-//        if(Objects.equal(groupInfo.get(groupId).getLeft(),null)){//this group has no servers
-//          Leave leave=new Leave(groupId);
-//          AMOCommand comm=new AMOCommand(leave,)
-//          for(Address add:this.shardMasters()){
-//            send(new PaxosRequest(leave),add);
-//          }
-//        }
-//      }
-//    }
 
     for(Pair<Set<Address>, Set<Integer>> pairs:groupInfo.values()){
       if(pairs.getRight().contains(theShard)){
