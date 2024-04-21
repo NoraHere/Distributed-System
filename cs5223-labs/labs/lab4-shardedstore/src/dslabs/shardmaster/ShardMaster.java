@@ -222,7 +222,7 @@ public final class ShardMaster implements Application {
         //Logger.getLogger("").info("config in shardmaster: " + config);
         //Logger.getLogger("").info("config_num: " + num);
         //System.out.print(num);
-        if(Objects.equals(config_records.get(num),null)||Objects.equals(config_groups.get(num),null)){
+        if(Objects.equals(config_records.get(num),null)||Objects.equals(config_groups.get(num),null)||Objects.equals(config,null)){
           Logger.getLogger("").info("num: " + num);
           return new Error();
         }
