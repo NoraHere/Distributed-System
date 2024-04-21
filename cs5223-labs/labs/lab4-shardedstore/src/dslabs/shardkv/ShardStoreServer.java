@@ -144,7 +144,7 @@ public class ShardStoreServer extends ShardStoreNode {
         }
         ackReConfigNum=ShardMaster.INITIAL_CONFIG_NUM;
         currentShardConfig=shardConfig;
-        nextConfigNum++;
+        nextConfigNum++; duringReconfiguration=false;
         if(!Objects.equals(shards,null)){//initialize amoApplication_records
           for(Integer shard:shards){
             amoApplication_records.put(shard,new AMOApplication<>(kvStore));
@@ -226,6 +226,7 @@ public class ShardStoreServer extends ShardStoreNode {
     if(nextConfigNum>m.shardConfig().configNum()||amoApplication_records.containsKey(m.theShard())){//old message
       send(new ACKReconfig(true,m.shardConfig(),m.theShard()),sender);
       Logger.getLogger("").info("old Transfer message, nextReConfigNum: "+nextConfigNum);
+      return;
     }
     else if(m.shardConfig().configNum()>nextConfigNum){//first need to get the latest config from shardMaster
       checkIn();//ensure my shards have already sent
@@ -244,7 +245,14 @@ public class ShardStoreServer extends ShardStoreNode {
         Logger.getLogger("").info("ERROR Shard transfer");
       }
     }
-    if(Objects.equals(amoApplication_records.keySet(),m.shardConfig().groupInfo().get(this.groupId).getRight())){//all received
+    boolean checkReceived=true;
+    for(Integer num:m.shardConfig().groupInfo().get(this.groupId).getRight()){
+      if(!amoApplication_records.keySet().contains(num)){
+        checkReceived=false;
+        break;
+      }
+    }
+    if(checkReceived){//all received
       allReceived=true;
       Logger.getLogger("").info(this.address()+" all received, configNum: "+m.shardConfig().configNum());
     }
@@ -280,6 +288,7 @@ public class ShardStoreServer extends ShardStoreNode {
   // Your code here...
 
   private void checkAllDone(){
+    Logger.getLogger("").info(this.address()+" checkAllDone");
     if(allReceived&&Objects.equals(ackReConfigNum,nextConfigNum)){//Received and sent, can move to next query
       Ack_record.clear();
       if(!Objects.equals(currentShardConfig.groupInfo().get(this.groupId),null)){//update shards
@@ -304,9 +313,9 @@ public class ShardStoreServer extends ShardStoreNode {
       }
 
       nextConfigNum++;firstTime=true;allReceived=false;
-      Logger.getLogger("").info(this.address()+ " move to nextConfigNum: "+ nextConfigNum);
-      Logger.getLogger("").info("amoApplictaion_records: "+amoApplication_records);
       duringReconfiguration=false;//stop reconfiguration process
+      Logger.getLogger("").info(this.address()+ " move to nextConfigNum: "+ nextConfigNum);
+      //Logger.getLogger("").info("amoApplictaion_records: "+amoApplication_records);
       commandList.removeFirst();
       if(!commandList.isEmpty()){
         executeCommandList();
@@ -321,6 +330,9 @@ public class ShardStoreServer extends ShardStoreNode {
   }
   private void reconfiguration(ShardConfig shardConfig){
     Map<Integer, Pair<Set<Address>, Set<Integer>>> groupInfo=shardConfig.groupInfo();
+    Logger.getLogger("").info(this.address()+"reconfiguration");
+    Logger.getLogger("").info(this.address()+"shards: "+shards);
+    Logger.getLogger("").info(this.address()+"pair: "+groupInfo.get(this.groupId));
     // groupId -> <group members, shard numbers>
     if(Objects.equals(shards, null)){//no need to transfer
       ackReConfigNum=shardConfig.configNum();
@@ -334,48 +346,58 @@ public class ShardStoreServer extends ShardStoreNode {
       }
       if(Objects.equals(newshards,null)){//no need to receive,can move to next query
         allReceived=true;
+        Logger.getLogger("").info(this.address()+" all received");
       }
     }
     else{//shards!=null
       Pair<Set<Address>, Set<Integer>> pair= groupInfo.get(this.groupId);
-      if(Objects.equals(pair,null)){//not involve anymore,leave or never show up
+      if(Objects.equals(pair,null)||Objects.equals(pair.getRight(),null)){//not involve anymore,leave or never show up
         allReceived=true;//no need to received
+        Logger.getLogger("").info(this.address()+" all received");
         transferConfig(shardConfig);
         set(new TransferConfigTimer(shardConfig),TransferConfigTimer.RERTY_MILLIS);
       }
-      else{//pair!=null
-        Set<Integer> nextShards=pair.getRight();
-        if(!Objects.equals(nextShards,shards)){
-          boolean noNeedR=true;//no need to receive
-          boolean noNeedS=true;//no need to send
-          for (Integer shard : nextShards) {
-            if (!shards.contains(shard)) {
-              noNeedR = false;
-              break;
-            }
-          }
-          for (Integer shard : shards) {
-            if (!nextShards.contains(shard)) {
-              noNeedS = false;
-              break;
-            }
-          }
+      else{//pair.getRight!=null
+        Set<Integer> nextShards=pair.getRight();//nextShards!=null
+          boolean noNeedR=shards.containsAll(nextShards);
+          boolean noNeedS=nextShards.containsAll(shards);
+        Logger.getLogger("").info(this.address()+" noNeedR: "+noNeedR+" noNeedS: "+noNeedS);
           if(noNeedR){
             allReceived=true;
+            Logger.getLogger("").info(this.address()+" all received");
           }
           if(noNeedS){
             ackReConfigNum=shardConfig.configNum();
+            Logger.getLogger("").info(this.address()+" new ackReConfigNum: "+ackReConfigNum);
           }
           else{
             transferConfig(shardConfig);
             set(new TransferConfigTimer(shardConfig),TransferConfigTimer.RERTY_MILLIS);
           }
+//        if(!Objects.equals(nextShards,shards)){
+//          boolean noNeedR=true;//no need to receive
+//          boolean noNeedS=true;//no need to send
+//          for (Integer shard : nextShards) {
+//            if (!shards.contains(shard)) {
+//              noNeedR = false;
+//              break;
+//            }
+//          }
+//          for (Integer shard : shards) {
+//            if (!nextShards.contains(shard)) {
+//              noNeedS = false;
+//              break;
+//            }
+//          }
+
         }
-        else{//no need to transfer, no need to receive
-          ackReConfigNum=shardConfig.configNum();
-          allReceived=true;
-        }
-      }
+//        else{//no need to transfer, no need to receive
+//          ackReConfigNum=shardConfig.configNum();
+//          allReceived=true;
+//          Logger.getLogger("").info(this.address()+" all received");
+//          Logger.getLogger("").info("new ackReConfigNum: "+ackReConfigNum);
+//        }
+//      }
     }
     checkAllDone();
   }
@@ -414,12 +436,15 @@ public class ShardStoreServer extends ShardStoreNode {
   }
   private void executeCommandList(){
     AMOCommand comm=(AMOCommand) commandList.getFirst();//firstCommand
+    Logger.getLogger("").info(this.address()+" execute command: "+comm);
     if(AMOCommand.getCommand(comm) instanceof ShardStoreServer.reconfig){
+      Logger.getLogger("").info(this.address()+" duringReconfiguration: "+duringReconfiguration);
       if(!duringReconfiguration){
+        duringReconfiguration=true;
         reconfig newreconfig= (ShardStoreServer.reconfig) AMOCommand.getCommand(comm);
         reconfiguration(newreconfig.shardConfig);
-        duringReconfiguration=true;
       }
+      checkAllDone();
     }
     else{
       int theShard=findTheShard(AMOCommand.getCommand(comm));
