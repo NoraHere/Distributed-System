@@ -44,6 +44,7 @@ public class ShardStoreServer extends ShardStoreNode {
   private Address[] shardMasters;
   private int nextConfigNum= ShardMaster.INITIAL_CONFIG_NUM;//ask current config number(query)
   private int ackReConfigNum=-1;//configNum received all ack(successful sent)
+  private ShardConfig currentShardConfig;
   private Set<Integer> shards;//corresponding shards
   private HashMap<Integer,HashMap<Address,Boolean>> Ack_record=new HashMap<>();//shard:<Add:true/false>
   private int seqNum=0;//reConfig seqNum
@@ -91,26 +92,33 @@ public class ShardStoreServer extends ShardStoreNode {
   private void handleShardStoreRequest(ShardStoreRequest m, Address sender) {
     // Your code here...
     //from client
-    if(nextConfigNum>ShardMaster.INITIAL_CONFIG_NUM) {//already received first reply from shardMaster
+    if(!Objects.equals(currentShardConfig,null)){//already received first reply from shardMaster
       AMOCommand comm = (AMOCommand) m.command();
-      if (!Objects.equals(shards, null)) {
+      if(Objects.equals(m.shardNum(),currentShardConfig.configNum())){//with same page
         SingleKeyCommand singleKeyCommand = (SingleKeyCommand) AMOCommand.getCommand(comm);
         String key = singleKeyCommand.key();
         int theShard = keyToShard(key);
-        if(duringReconfiguration){//don't deal with client's request???
-          return;
+        Set<Integer> newShards;//in case during reconfiguration process
+        if(!Objects.equals(currentShardConfig.groupInfo().get(this.groupId),null)){
+          newShards=currentShardConfig.groupInfo().get(this.groupId).getRight();
         }
-        if (!shards.contains(theShard)) {//not responsible for this request
-          res = new AMOResult(null, AMOCommand.getSequenceNum(comm), AMOCommand.getAddress(comm));
-          send(new ShardStoreReply(res, false), sender);
-        } else {//send to local paxos
+        else{
+          newShards=null;
+        }
+        if(Objects.equals(newShards,null)||!newShards.contains(theShard)){
+          res=new AMOResult(null,AMOCommand.getSequenceNum(comm),AMOCommand.getAddress(comm));
+          send(new ShardStoreReply(res,false,currentShardConfig.configNum()),sender);
+        }
+        else{
           handleMessage(new PaxosRequest(m.command()), paxosAddress);
-          //Nodes within the same root node can pass messages
         }
       }
-      else{
-        res=new AMOResult(null,AMOCommand.getSequenceNum(comm),AMOCommand.getAddress(comm));
-        send(new ShardStoreReply(res,false),sender);
+      else if(m.shardNum()>currentShardConfig.configNum()){//client's configNum is larger
+        checkIn();
+      }
+      else{//the client's configNum is out of date
+        res = new AMOResult(null, AMOCommand.getSequenceNum(comm), AMOCommand.getAddress(comm));
+        send(new ShardStoreReply(res, false,currentShardConfig.configNum()), sender);
       }
     }
     else{
@@ -135,6 +143,7 @@ public class ShardStoreServer extends ShardStoreNode {
           shards=((ShardConfig) m.result()).groupInfo().get(groupId).getRight();
         }
         ackReConfigNum=ShardMaster.INITIAL_CONFIG_NUM;
+        currentShardConfig=shardConfig;
         nextConfigNum++;
         if(!Objects.equals(shards,null)){//initialize amoApplication_records
           for(Integer shard:shards){
@@ -146,6 +155,7 @@ public class ShardStoreServer extends ShardStoreNode {
       else{
         if(nextConfigNum-1<shardConfig.configNum()&&firstTime){//shardMaster has changes
           firstTime=false;
+          currentShardConfig=shardConfig;
           seqNum++;
           reconfig reconfig=new reconfig(shardConfig);//command
           AMOCommand comm=new AMOCommand(reconfig,seqNum,this.address());
@@ -288,7 +298,9 @@ public class ShardStoreServer extends ShardStoreNode {
   // Your code here...
   private void onCheckInTimer(CheckInTimer t){
     //periodically send query to shardMaster
-    checkIn();
+    if(!duringReconfiguration){
+      checkIn();
+    }
     set(t,CheckInTimer.RERTY_MILLIS);
   }
   private void onTransferConfigTimer(TransferConfigTimer t){
@@ -315,6 +327,28 @@ public class ShardStoreServer extends ShardStoreNode {
    * ---------------------------------------------------------------------------------------------*/
   // Your code here...
 
+  private void checkAllDone(){
+    if(allReceived&&Objects.equals(ackReConfigNum,nextConfigNum)){//Received and sent, can move to next query
+      Ack_record.clear();
+      if(!Objects.equals(currentShardConfig.groupInfo().get(this.groupId),null)){//update shards
+        shards=currentShardConfig.groupInfo().get(this.groupId).getRight();
+      }
+      else{
+        shards=null;
+      }
+      Iterator<Integer> iterator = amoApplication_records.keySet().iterator();//update amoApplication_records
+      while (iterator.hasNext()) {
+        Integer shard = iterator.next();
+        if (!shards.contains(shard)) {
+          iterator.remove(); // Removes the current key safely
+        }
+      }
+      //Logger.getLogger("").info("amoApplication_records after clearance: "+amoApplication_records);
+      nextConfigNum++;firstTime=true;allReceived=false;
+      Logger.getLogger("").info(this.address()+ " move to nextConfigNum: "+ nextConfigNum);
+      Logger.getLogger("").info("amoApplictaion_records: "+amoApplication_records);
+    }
+  }
   private void checkIn(){
     Query query=new Query(nextConfigNum);//ask shardMaster next shards configuration
     for(Address add:this.shardMasters){
@@ -439,7 +473,7 @@ public class ShardStoreServer extends ShardStoreNode {
       }
       res=amoApplication_records.get(theShard).execute(comm);
       //res=amoApplication.execute(m.command());
-      send(new ShardStoreReply(res,true),AMOResult.getAddress(res));//send back to client
+      send(new ShardStoreReply(res,true,currentShardConfig.configNum()),AMOResult.getAddress(res));//send back to client
       commandList.removeFirst();
       if(!commandList.isEmpty()){
         executeCommandList();

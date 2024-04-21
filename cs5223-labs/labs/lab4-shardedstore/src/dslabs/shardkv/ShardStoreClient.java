@@ -64,7 +64,7 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
     }
     else{
       for(Address add:servers){
-        send(new ShardStoreRequest(comm),add);
+        send(new ShardStoreRequest(comm,shardConfig.configNum()),add);
       }
     }
     set(new ClientTimer(comm),ClientTimer.CLIENT_RETRY_MILLIS);
@@ -90,17 +90,28 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
    * ---------------------------------------------------------------------------------------------*/
   private synchronized void handleShardStoreReply(ShardStoreReply m, Address sender) {
     // Your code here...
-    if(Objects.equal(AMOResult.getSequenceNum(m.result()),sequenceNum)&&!m.isTrue()){
-      checkIn();
-      tryNext=true;
-    }
-    else{
-      res = m.result();
-      if (Objects.equal(map2.get(AMOResult.getAddress(res)),AMOResult.getSequenceNum(res)))return;
-      map2.put(AMOResult.getAddress(res),AMOResult.getSequenceNum(res));
-      this.notify();
-    }
+    if(Objects.equal(AMOResult.getSequenceNum(m.result()),sequenceNum)){
+      if(!m.isTrue()){
+        if(m.shardNum()<shardConfig.configNum()){
+          //resend
+        }
+        else if(m.shardNum()>shardConfig.configNum()){
+          checkIn();
+          tryNext=true;
+        }
+        else{
+          //error
+          Logger.getLogger("").info("ERROR");
+        }
 
+      }
+      else{
+        res = m.result();
+        if (Objects.equal(map2.get(AMOResult.getAddress(res)),AMOResult.getSequenceNum(res)))return;
+        map2.put(AMOResult.getAddress(res),AMOResult.getSequenceNum(res));
+        this.notify();
+      }
+    }
   }
 
   // Your code here...
@@ -110,18 +121,17 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
       checkIn();
     }
     else{
-//      if(tryNext){
-//        if(Objects.equal((ShardConfig)m.result(),shardConfig)){//retry
-//          checkIn();
-//          return;
-//        }
-//      }
-//      tryNext=false;
+      if(tryNext){
+        if(((ShardConfig)m.result()).configNum()<=shardConfig.configNum()){//retry
+          checkIn();
+          return;
+        }
+      }
+      tryNext=false;
       ShardConfig mayshardConfig= (ShardConfig) m.result();
       if(Objects.equal(shardConfig,null)||(!Objects.equal(mayshardConfig,null)&&mayshardConfig.configNum()>shardConfig.configNum())){
         shardConfig=mayshardConfig;
       }
-      //sendCommand(AMOCommand.getCommand(comm));
       if(!Objects.equal(comm,null)){
         if(map2.containsKey(AMOCommand.getAddress(comm))&& (map2.get(AMOCommand.getAddress(comm))>=AMOCommand.getSequenceNum(comm)))return;
         Set<Address> servers=findServers(AMOCommand.getCommand(comm));
@@ -130,7 +140,7 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
         }
         else{
           for(Address add:servers){
-            send(new ShardStoreRequest(comm),add);
+            send(new ShardStoreRequest(comm,shardConfig.configNum()),add);
           }
         }
       }
@@ -150,7 +160,7 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
     else{
       if(map2.containsKey(AMOCommand.getAddress(comm))&& (map2.get(AMOCommand.getAddress(comm))>=AMOCommand.getSequenceNum(comm)))return;
       for(Address add:servers){
-        send(new ShardStoreRequest(t.command()),add);
+        send(new ShardStoreRequest(t.command(),shardConfig.configNum()),add);
       }
     }
     set(t,ClientTimer.CLIENT_RETRY_MILLIS);

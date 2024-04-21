@@ -14,6 +14,7 @@ import lombok.Data;
 final class ShardStoreRequest implements Message {
   // Your code here...
   private final Command command;
+  private final int shardNum;
 }
 
 @Data
@@ -21,6 +22,7 @@ final class ShardStoreReply implements Message {
   // Your code here...
   private final AMOResult result;
   private final boolean isTrue;
+  private final int shardNum;
 }
 
 // Your code here...
