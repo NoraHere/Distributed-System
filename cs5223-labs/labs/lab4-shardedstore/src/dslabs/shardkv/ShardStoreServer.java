@@ -170,8 +170,8 @@ public class ShardStoreServer extends ShardStoreNode {
       int mayAckReConfigNum=ack.shardConfig.configNum();//record current ackReConfigNum
       if(mayAckReConfigNum>ackReConfigNum&&Objects.equals(groupId,ack.groupId)){
         ackReConfigNum=mayAckReConfigNum;
-        Logger.getLogger("").info("new ackReConfigNum: "+ackReConfigNum);
-        Logger.getLogger("").info("all successful ack: " + ackReConfigNum);
+        Logger.getLogger("").info(this.address()+" new ackReConfigNum: "+ackReConfigNum);
+        Logger.getLogger("").info(this.address()+" all successful ack: " + ackReConfigNum);
 
         Set<Integer> newshards;
         if(!Objects.equals(ack.shardConfig.groupInfo().get(this.groupId),null)){
@@ -183,7 +183,6 @@ public class ShardStoreServer extends ShardStoreNode {
         if(allReceived||Objects.equals(newshards,null)){//all received/no need to receive, next query
           allReceived=true;
         }
-
         checkAllDone();
       }
     }
@@ -218,7 +217,7 @@ public class ShardStoreServer extends ShardStoreNode {
       ackReconfig ack=new ackReconfig(m.shardConfig(),groupId);//command
       seqNum++;
       handleMessage(new PaxosRequest(new AMOCommand(ack,seqNum,this.address())),paxosAddress);//consensus successful transfer
-      Logger.getLogger("").info("all ack of shardNum: "+ack.shardConfig.configNum());
+      Logger.getLogger("").info(this.address()+ "all ack of shardNum: "+ack.shardConfig.configNum());
     }
   }
   private void handleTransferConfig(TransferConfig m,Address sender){
@@ -336,7 +335,7 @@ public class ShardStoreServer extends ShardStoreNode {
     // groupId -> <group members, shard numbers>
     if(Objects.equals(shards, null)){//no need to transfer
       ackReConfigNum=shardConfig.configNum();
-      Logger.getLogger("").info("new ackReConfigNum: "+ackReConfigNum);
+      Logger.getLogger("").info(this.address()+" new ackReConfigNum: "+ackReConfigNum);
       Set<Integer> newshards;
       if(!Objects.equals(shardConfig.groupInfo().get(this.groupId),null)){
         newshards=shardConfig.groupInfo().get(this.groupId).getRight();

@@ -154,9 +154,9 @@ public final class ShardMaster implements Application {
             backup_config.put(num,null);
           }
         }
-
+        HashMap<Integer,Integer> newcount_group=countHashMap(backup_config);
         while(even>0){
-          int number=findMaxOrMinValue(count_group,false);//groupId
+          int number=findMaxOrMinValue(newcount_group,false);//groupId
           //int num=findKey(backup_config,number);//shard number
           //System.out.print("num: "+ num);
 //          if(Objects.equals(num,0)){
