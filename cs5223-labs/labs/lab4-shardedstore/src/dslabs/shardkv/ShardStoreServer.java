@@ -150,7 +150,6 @@ public class ShardStoreServer extends ShardStoreNode {
             amoApplication_records.put(shard,new AMOApplication<>(kvStore));
           }
         }
-        return;
       }
       else{
         if(nextConfigNum-1<shardConfig.configNum()&&firstTime){//shardMaster has changes
@@ -160,11 +159,8 @@ public class ShardStoreServer extends ShardStoreNode {
           reconfig reconfig=new reconfig(shardConfig);//command
           AMOCommand comm=new AMOCommand(reconfig,seqNum,this.address());
           handleMessage(new PaxosRequest(comm),paxosAddress);
-          //make sure this reconfig execute and then next reconfig
         }
       }
-
-
     }
   }
   private void handlePaxosRequest(PaxosRequest m,Address sender){
@@ -175,7 +171,8 @@ public class ShardStoreServer extends ShardStoreNode {
       if(mayAckReConfigNum>ackReConfigNum&&Objects.equals(groupId,ack.groupId)){
         ackReConfigNum=mayAckReConfigNum;
         Logger.getLogger("").info("new ackReConfigNum: "+ackReConfigNum);
-        Ack_record.clear();
+        Logger.getLogger("").info("all successful ack: " + ackReConfigNum);
+
         Set<Integer> newshards;
         if(!Objects.equals(ack.shardConfig.groupInfo().get(this.groupId),null)){
           newshards=ack.shardConfig.groupInfo().get(this.groupId).getRight();
@@ -184,32 +181,10 @@ public class ShardStoreServer extends ShardStoreNode {
           newshards=null;
         }
         if(allReceived||Objects.equals(newshards,null)){//all received/no need to receive, next query
-          Iterator<Integer> iterator = amoApplication_records.keySet().iterator();//update amoApplication_records
-          while (iterator.hasNext()) {
-            Integer shard = iterator.next();
-            if (!shards.contains(shard)) {
-              iterator.remove(); // Removes the current key safely
-            }
-          }
-          //Logger.getLogger("").info("amoApplication_records after clearance: "+amoApplication_records);
-          shards=newshards;//update shards
-          nextConfigNum++;firstTime=true;allReceived=false;
-          Logger.getLogger("").info(this.address()+ " move to nextConfigNum: "+ nextConfigNum);
-          Logger.getLogger("").info("amoApplictaion_records: "+amoApplication_records);
+          allReceived=true;
         }
-        //Ack_record.remove(mayAckReConfigNum);
-        Logger.getLogger("").info("all successful ack: " + ackReConfigNum);
 
-//        for(Integer shard:amoApplication_records.keySet()){//clear old amoApplication_records error
-//          if(!shards.contains(shard)){
-//            amoApplication_records.remove(shard);
-//          }
-//        }
-        duringReconfiguration=false;//stop reconfiguration process
-        commandList.removeFirst();
-        if(!commandList.isEmpty()){
-          executeCommandList();
-        }
+        checkAllDone();
       }
     }
     else{
@@ -240,17 +215,6 @@ public class ShardStoreServer extends ShardStoreNode {
       }
     }
     if(allACK){//send ackReconfig command to Paxos
-    //}
-    //if(!Objects.equals(current_record,null)&&!current_record.containsValue(false)){//current record all ack
-      //successfully transfer
-      //groupId -> <group members, shard numbers>
-//      Pair<Set<Address>, Set<Integer>> mayInfo=m.shardConfig().groupInfo().get(this.groupId);
-//      if(!Objects.equals(mayInfo,null)){//update my shards
-//        shards=mayInfo.getRight();
-//      }
-//      else{
-//        shards=null;
-//      }
       ackReconfig ack=new ackReconfig(m.shardConfig(),groupId);//command
       seqNum++;
       handleMessage(new PaxosRequest(new AMOCommand(ack,seqNum,this.address())),paxosAddress);//consensus successful transfer
@@ -268,7 +232,6 @@ public class ShardStoreServer extends ShardStoreNode {
       Logger.getLogger("").info("checkIn()");
     }
     else{//nextConfigNum-1==m.shardConfig.configNum
-      //m.amoApplication().map3().;
       if(m.shardConfig().groupInfo().get(this.groupId).getRight().contains(m.theShard())){//this groupID do need the shard
         amoApplication_records.put(m.theShard(),m.amoApplication());
         //amoApplication=new AMOApplication<>(m.amoApplication());//receive
@@ -285,12 +248,7 @@ public class ShardStoreServer extends ShardStoreNode {
       allReceived=true;
       Logger.getLogger("").info(this.address()+" all received, configNum: "+m.shardConfig().configNum());
     }
-    if(allReceived&&Objects.equals(ackReConfigNum,nextConfigNum)){//Received and sent, can move to next query
-      shards=m.shardConfig().groupInfo().get(this.groupId).getRight();//update shards
-      nextConfigNum++;firstTime=true;allReceived=false;
-      Logger.getLogger("").info(this.address()+" move to nextConfigNum: "+ nextConfigNum);
-      Logger.getLogger("").info("amoApplictaion_records: "+amoApplication_records);
-    }
+    checkAllDone();
   }
   /* ---------------------------------------------------------------------------q--------------------
    *  Timer Handlers
@@ -314,12 +272,6 @@ public class ShardStoreServer extends ShardStoreNode {
         }
       }
     }
-//    for(Address add:Ack_record.get(t.shardConfig().configNum()).keySet()){
-//      if(!Ack_record.get(t.shardConfig().configNum()).get(add)){//this add is false
-//        transferConfig(t.shardConfig());
-//        send(new TransferConfig(t.shardConfig(),t.amoApplication(),t.theShard()),add);
-//      }
-//    }
     set(t,TransferConfigTimer.RERTY_MILLIS);
   }
   /* -----------------------------------------------------------------------------------------------
@@ -336,17 +288,29 @@ public class ShardStoreServer extends ShardStoreNode {
       else{
         shards=null;
       }
-      Iterator<Integer> iterator = amoApplication_records.keySet().iterator();//update amoApplication_records
-      while (iterator.hasNext()) {
-        Integer shard = iterator.next();
-        if (!shards.contains(shard)) {
-          iterator.remove(); // Removes the current key safely
+
+      if(!Objects.equals(shards,null)){
+        Iterator<Integer> iterator = amoApplication_records.keySet().iterator();//update amoApplication_records
+        while (iterator.hasNext()) {
+          Integer shard = iterator.next();
+          if (!shards.contains(shard)) {
+            iterator.remove(); // Removes the current key safely
+          }
         }
+        //Logger.getLogger("").info("amoApplication_records after clearance: "+amoApplication_records);
       }
-      //Logger.getLogger("").info("amoApplication_records after clearance: "+amoApplication_records);
+      else{
+        amoApplication_records.clear();
+      }
+
       nextConfigNum++;firstTime=true;allReceived=false;
       Logger.getLogger("").info(this.address()+ " move to nextConfigNum: "+ nextConfigNum);
       Logger.getLogger("").info("amoApplictaion_records: "+amoApplication_records);
+      duringReconfiguration=false;//stop reconfiguration process
+      commandList.removeFirst();
+      if(!commandList.isEmpty()){
+        executeCommandList();
+      }
     }
   }
   private void checkIn(){
@@ -359,7 +323,6 @@ public class ShardStoreServer extends ShardStoreNode {
     Map<Integer, Pair<Set<Address>, Set<Integer>>> groupInfo=shardConfig.groupInfo();
     // groupId -> <group members, shard numbers>
     if(Objects.equals(shards, null)){//no need to transfer
-      Ack_record.clear();
       ackReConfigNum=shardConfig.configNum();
       Logger.getLogger("").info("new ackReConfigNum: "+ackReConfigNum);
       Set<Integer> newshards;
@@ -370,14 +333,8 @@ public class ShardStoreServer extends ShardStoreNode {
         newshards=null;
       }
       if(Objects.equals(newshards,null)){//no need to receive,can move to next query
-        shards=newshards;//update shards
-        nextConfigNum++;firstTime=true;allReceived=false;
-        Logger.getLogger("").info(this.address()+ " move to nextConfigNum: "+ nextConfigNum);
-        Logger.getLogger("").info("amoApplictaion_records: "+amoApplication_records);
+        allReceived=true;
       }
-      //else wait to receive
-
-      //Ack_record.remove(mayAckReConfigNum);
     }
     else{//shards!=null
       Pair<Set<Address>, Set<Integer>> pair= groupInfo.get(this.groupId);
@@ -409,19 +366,18 @@ public class ShardStoreServer extends ShardStoreNode {
           if(noNeedS){
             ackReConfigNum=shardConfig.configNum();
           }
-          transferConfig(shardConfig);
-          set(new TransferConfigTimer(shardConfig),TransferConfigTimer.RERTY_MILLIS);
+          else{
+            transferConfig(shardConfig);
+            set(new TransferConfigTimer(shardConfig),TransferConfigTimer.RERTY_MILLIS);
+          }
         }
-        else{//no need to transfer, no need to receive, can move to next query
+        else{//no need to transfer, no need to receive
           ackReConfigNum=shardConfig.configNum();
-          Logger.getLogger("").info("new ackReConfigNum: "+ackReConfigNum);
-          nextConfigNum++;firstTime=true;allReceived=false;
-          Logger.getLogger("").info(this.address()+ " move to nextConfigNum: "+ nextConfigNum);
-          Logger.getLogger("").info("amoApplictaion_records: "+amoApplication_records);
-          //else wait to receive
+          allReceived=true;
         }
       }
     }
+    checkAllDone();
   }
 
   private void transferConfig(ShardConfig shardConfig){
