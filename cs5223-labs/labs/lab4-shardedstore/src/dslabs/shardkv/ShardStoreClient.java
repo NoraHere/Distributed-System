@@ -8,6 +8,7 @@ import dslabs.framework.Client;
 import dslabs.framework.Command;
 import dslabs.framework.Result;
 import dslabs.kvstore.KVStore.SingleKeyCommand;
+import dslabs.kvstore.TransactionalKVStore.Transaction;
 import dslabs.paxos.PaxosReply;
 import dslabs.paxos.PaxosRequest;
 import dslabs.shardkv.ShardStoreServer.reconfig;
@@ -17,6 +18,7 @@ import dslabs.shardmaster.ShardMaster.Move;
 import dslabs.shardmaster.ShardMaster.Query;
 import dslabs.shardmaster.ShardMaster.ShardConfig;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -57,7 +59,15 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
   public synchronized void sendCommand(Command command) {
     // Your code here...
     sequenceNum++;
-    Set<Address> servers=findServers(command);
+    Set<Address> servers;
+    if(command instanceof SingleKeyCommand){
+      servers = findServers(command);
+    }
+    else {//part3
+      //decide the coordinator
+      servers=findCoordinator(command);
+    }
+
     this.comm= new AMOCommand(command,sequenceNum,this.address());
     if(Objects.equal(servers,null)){
       checkIn();
@@ -135,7 +145,13 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
       }
       if(!Objects.equal(comm,null)){
         if(map2.containsKey(AMOCommand.getAddress(comm))&& (map2.get(AMOCommand.getAddress(comm))>=AMOCommand.getSequenceNum(comm)))return;
-        Set<Address> servers=findServers(AMOCommand.getCommand(comm));
+        Set<Address> servers;
+        if(comm.command() instanceof SingleKeyCommand){
+          servers = findServers(comm.command());
+        }
+        else {//part3
+          servers=findCoordinator(comm.command());//decide the coordinator
+        }
         if(Objects.equal(servers,null)){
           Logger.getLogger("").info(this.address()+" servers not found, command: "+comm);
         }
@@ -153,9 +169,17 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
    * ---------------------------------------------------------------------------------------------*/
   private synchronized void onClientTimer(ClientTimer t) {
     // Your code here...
-    AMOCommand comm= (AMOCommand) t.command();
-    if(map2.containsKey(AMOCommand.getAddress(comm))&& (map2.get(AMOCommand.getAddress(comm))>=AMOCommand.getSequenceNum(comm)))return;
-    Set<Address> servers=findServers(AMOCommand.getCommand(comm));
+    Command command= t.command().command();
+    Set<Address> servers;
+    if(command instanceof SingleKeyCommand){
+      servers = findServers(command);
+    }
+    else {//part3
+      //decide the coordinator
+      servers=findCoordinator(command);
+    }
+
+    AMOCommand comm= t.command();
     if(Objects.equal(servers,null)){
       checkIn();
       Logger.getLogger("").info(this.address()+" servers not found, command: "+comm);
@@ -163,7 +187,7 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
     else{
       if(map2.containsKey(AMOCommand.getAddress(comm))&& (map2.get(AMOCommand.getAddress(comm))>=AMOCommand.getSequenceNum(comm)))return;
       for(Address add:servers){
-        send(new ShardStoreRequest(t.command(),shardConfig.configNum()),add);
+        send(new ShardStoreRequest(comm,shardConfig.configNum()),add);
       }
     }
     set(t,ClientTimer.CLIENT_RETRY_MILLIS);
@@ -195,5 +219,40 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
       }
     }
     return null;//no found, should not happen
+  }
+  private HashMap<Integer,Set<Address>> findTransactionServers(Command command){//part3
+    if(com.google.common.base.Objects.equal(shardConfig,null)){// groupId -> <group members, shard numbers>
+      return null;
+    }
+    Map<Integer, Pair<Set<Address>, Set<Integer>>> groupInfo=shardConfig.groupInfo();
+    if(command instanceof Transaction) {//transactional requests, part3
+      // groupId -> <group members, shard numbers>
+      HashMap<Integer,Set<Address>> servers = new HashMap<>();//groupId:servers
+      for (String key : ((Transaction) command).keySet()) {
+        int theShard = keyToShard(key);
+        for(Integer groupId: groupInfo.keySet()){
+          if(!java.util.Objects.equals(groupInfo.get(groupId).getRight(),null)&&groupInfo.get(groupId).getRight().contains(theShard)){
+            servers.put(groupId,groupInfo.get(groupId).getLeft());
+          }
+        }
+      }
+      return servers;
+    }
+    return null;//only deal with transaction
+  }
+  private Set<Address> findCoordinator(Command command){//part3
+    HashMap<Integer,Set<Address>> servers=findTransactionServers(command);
+    if(Objects.equal(servers,null)){
+      return null;
+    }
+    else{// groupId -> <group members, shard numbers>
+      int theMaxId=0;
+      for(Integer id:servers.keySet()){
+        if(id>theMaxId){
+          theMaxId=id;
+        }
+      }
+      return servers.get(theMaxId);
+    }
   }
 }

@@ -5,6 +5,7 @@ import dslabs.framework.Command;
 import dslabs.framework.Result;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NonNull;
 import lombok.ToString;
 
@@ -60,7 +61,7 @@ public class KVStore implements Application {
     }
 
     // Your code here...
-    private HashMap<String,String> map0= new HashMap<>();//result
+    @Getter private HashMap<String,String> map0= new HashMap<>();//result
     public KVStore() {//newly add
         this.map0 = new HashMap<>();
     }
