@@ -52,7 +52,9 @@ public class ShardStoreServer extends ShardStoreNode {
   private HashMap<AMOCommand,HashMap<Integer,Boolean>> vote_results=new HashMap<>();//vote_result:AMOCommand:(tryTimes:result) //part3
   private HashMap<AMOCommand,HashMap<Integer,Boolean>> participants_vote_record=new HashMap<>();//AMOCommand:(GroupId:vote),need Paxos
   private HashMap<AMOCommand,Map<String, String>> readResult_record=new HashMap<>();//groupId:read data
-  private HashMap<AMOCommand,HashMap<Integer,HashMap<Address,Boolean>>> part_vote_records=new HashMap<>();//coordinator record participants' votes//part3
+  private HashMap<AMOCommand,AMOResult> shardStoreReply_records=new HashMap<>();
+  private HashMap<Address,AMOCommand> requests=new HashMap<>();//record multikey requests
+  //private HashMap<AMOCommand,HashMap<Integer,HashMap<Address,Boolean>>> part_vote_records=new HashMap<>();//coordinator record participants' votes//part3
   private Address paxosAddress;
   private KVStore kvStore=new KVStore();
   private TransactionalKVStore transactionalKVStore=new TransactionalKVStore();
@@ -134,7 +136,13 @@ public class ShardStoreServer extends ShardStoreNode {
           }
         }
         else {//part3
-          handleMessage(new PaxosRequest(m.command()),paxosAddress);
+          if(shardStoreReply_records.containsKey(comm)){
+            send(new ShardStoreReply(shardStoreReply_records.get(comm),true,currentShardConfig.configNum()),sender);
+          }
+          else if(!requests.containsKey(sender)||requests.get(sender).sequenceNum()<comm.sequenceNum()){
+            handleMessage(new PaxosRequest(m.command()),paxosAddress);
+            requests.put(sender,comm);
+          }
         }
       }
       else if(m.shardNum()>currentShardConfig.configNum()){//client's configNum is larger
@@ -252,7 +260,8 @@ public class ShardStoreServer extends ShardStoreNode {
       }
     }
     else{//configNum different
-      send(new PrepareReply(false,m.comm(),this.groupId,m.tryTimes(),currentShardConfig.configNum(),new HashMap<>()),sender);
+      checkIn();
+      //send(new PrepareReply(false,m.comm(),this.groupId,m.tryTimes(),currentShardConfig.configNum(),new HashMap<>()),sender);
     }
   }
   private void handlePrepareReply(PrepareReply m,Address sender){//part3
@@ -287,6 +296,7 @@ public class ShardStoreServer extends ShardStoreNode {
             }
             AMOResult result=new AMOResult(res,m.comm().sequenceNum(),m.comm().address());
             send(new ShardStoreReply(result,true,currentShardConfig.configNum()),m.comm().address());
+            shardStoreReply_records.put(m.comm(),result);
             commandList.removeFirst();
             if(!commandList.isEmpty()){
               executeCommandList();
@@ -346,7 +356,7 @@ public class ShardStoreServer extends ShardStoreNode {
   }
   private void handleAskDecisionMessage(AskDecisionMessage message,Address sender){
     //coordinator
-    if(Objects.equals(vote_results.get(message.comm()).get(message.tryTime()),null)){
+    if(vote_results.containsKey(message.comm())&&!Objects.equals(vote_results.get(message.comm()).get(message.tryTime()),null)){
       send(new DecisionMessage(vote_results.get(message.comm()).get(message.tryTime())
           ,message.tryTime(),message.comm(),currentShardConfig.configNum()),sender);
     }
@@ -624,9 +634,15 @@ public class ShardStoreServer extends ShardStoreNode {
         }
       }
       else{//part3
-        sendPrepareMessage(comm,1,currentShardConfig.configNum());
         participants_vote_record.put(comm,new HashMap<>());
         tryTimes.put(comm,1);
+        if(!Objects.equals(currentShardConfig,null)){
+          sendPrepareMessage(comm,1,currentShardConfig.configNum());
+        }
+        else{
+          checkIn();
+        }
+
       }
     }
   }
@@ -671,6 +687,9 @@ public class ShardStoreServer extends ShardStoreNode {
     return allYes;
   }
   private boolean canAcquireLocks(AMOCommand comm){//part3
+    if(Objects.equals(currentShardConfig.groupInfo().get(this.groupId),null)){
+      return false;
+    }
     Boolean allKeysOK=true;
     for(String key:((Transaction) comm.command()).keySet()){
       if(locks.containsKey(key)&&!locks.get(key)){
@@ -681,12 +700,15 @@ public class ShardStoreServer extends ShardStoreNode {
     return allKeysOK;
   }
   private void isReleaseLocks(AMOCommand comm,Boolean release){//part3
+    //Logger.getLogger("").info(this.address()+" isReleaseLocks: "+release);
+    if(Objects.equals(currentShardConfig.groupInfo().get(this.groupId),null)){
+      return;
+    }
     for (String key : ((Transaction) comm.command()).keySet()) {//acquire locks
       int theShard = keyToShard(key);
       if(currentShardConfig.groupInfo().get(this.groupId).getRight().contains(theShard)){//is the key responsible
-        if (!locks.containsKey(key) || locks.get(key)) {
-          locks.put(key, !release);
-        }
+        locks.put(key,release);
+        //Logger.getLogger("").info(this.address()+" change the key: "+key+" to "+release);
       }
     }
     holdLocks.put(comm,!release);
@@ -726,15 +748,33 @@ public class ShardStoreServer extends ShardStoreNode {
     if(comm.command().readOnly()){
       return;
     }
-    for(Integer shards:currentShardConfig.groupInfo().get(this.groupId).getRight()){//only execute
-      for(String key:((Transaction) comm.command()).keySet()) {
+    if(comm.command() instanceof Swap){
+      for(String key:((Transaction) comm.command()).writeSet()){
         int shard=keyToShard(key);
-        if(Objects.equals(shards,shard)) {//is the key responsible
-          amoApplication_records.get(shard).execute(comm);
+        if(currentShardConfig.groupInfo().get(groupId).getRight().contains(shard)){//responsible for
+          if(amoApplication_records.containsKey(shard)) {
+            amoApplication_records.get(shard).execute(comm);
+            Logger.getLogger("").info(this.address() + " execute " + comm + " shard: " + shard);
+          }
           break;
         }
       }
     }
+    else{//MultiPut
+      for(Integer shards:currentShardConfig.groupInfo().get(this.groupId).getRight()){//only execute
+        for(String key:((Transaction) comm.command()).writeSet()) {
+          int shard=keyToShard(key);
+          if(Objects.equals(shards,shard)) {//is the key responsible
+            if(amoApplication_records.containsKey(shards)){
+              amoApplication_records.get(shards).execute(comm);
+              Logger.getLogger("").info(this.address()+" execute "+comm+" shard: "+shards);
+            }
+            break;
+          }
+        }
+      }
+    }
+
   }
   private void sendPrepareMessage(AMOCommand comm,int tryTimes,int configNum){
     //As coordinator
@@ -746,6 +786,7 @@ public class ShardStoreServer extends ShardStoreNode {
     else if(Objects.equals(servers.size(),1)){//only one group involves
       HashMap<Integer,Boolean> record=new HashMap<>();
       //acquire locks and send reply to client
+      Logger.getLogger("").info(this.address()+" canAcquireLocks: "+canAcquireLocks(comm));
       if(canAcquireLocks(comm)){
         isReleaseLocks(comm,false);//acquire locks
         //send commit to paxos???
@@ -762,9 +803,10 @@ public class ShardStoreServer extends ShardStoreNode {
           res=new MultiPutOk();
         }
         executeWrite(comm);
-        send(new ShardStoreReply(new AMOResult(res,comm.sequenceNum(),comm.address()),
-            true,currentShardConfig.configNum()),comm.address());
+        AMOResult result=new AMOResult(res,comm.sequenceNum(),comm.address());
         isReleaseLocks(comm,true);//release locks
+        send(new ShardStoreReply(result, true,currentShardConfig.configNum()),comm.address());
+        shardStoreReply_records.put(comm,result);
         commandList.removeFirst();
         if(!commandList.isEmpty()){
           executeCommandList();

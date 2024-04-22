@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NonNull;
@@ -113,12 +114,14 @@ public class TransactionalKVStore extends KVStore {
 
       if (k2e) {
         db.put(key1, db.get(key2));
+        Logger.getLogger("").info("swap to: "+key1+" : "+db.get(key2));
       } else {
         db.remove(key1);
       }
 
       if (k1e) {
         db.put(key2, v1);
+        Logger.getLogger("").info("swap to: "+key2+" : "+v1);
       } else {
         db.remove(key2);
       }
