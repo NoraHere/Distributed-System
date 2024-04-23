@@ -70,7 +70,8 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
 
     this.comm= new AMOCommand(command,sequenceNum,this.address());
     if(Objects.equal(servers,null)){
-      checkIn();
+      //checkIn();
+      return;
     }
     else{
       for(Address add:servers){
@@ -106,8 +107,9 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
           //resend
         }
         else if(m.shardNum()>shardConfig.configNum()){
-          checkIn();
+          //checkIn();
           tryNext=true;
+          return;
         }
         else{
           //error
@@ -128,12 +130,12 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
   private void handlePaxosReply(PaxosReply m,Address sender){
     //from shardMaster
     if(m.result()instanceof ShardMaster.Error){
-      checkIn();
+      return;
     }
     else{
       if(tryNext){
         if(((ShardConfig)m.result()).configNum()<=shardConfig.configNum()){//retry
-          checkIn();
+          //checkIn();
           return;
         }
       }
@@ -179,7 +181,7 @@ public class ShardStoreClient extends ShardStoreNode implements Client {
 
     AMOCommand comm= t.command();
     if(Objects.equal(servers,null)){
-      checkIn();
+      //checkIn();
       Logger.getLogger("").info(this.address()+" servers not found, command: "+comm);
     }
     else{

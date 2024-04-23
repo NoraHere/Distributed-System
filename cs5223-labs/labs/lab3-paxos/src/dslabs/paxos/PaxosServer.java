@@ -251,7 +251,7 @@ public class PaxosServer extends Node {
     }
     if(m.command instanceof Query){//query
       Result res=app.execute(m.command);
-      Logger.getLogger("").info("query_config: " + res);
+      Logger.getLogger("").info(this.address+" query_config: " + res);
       send(new PaxosReply(res),sender);//send back directly
     }
   }
@@ -366,6 +366,7 @@ public class PaxosServer extends Node {
 //    }
     if(message.ballot()>l_ballot){
       if(election){//stop election
+        isActive=false;//????????
         election=false;
         stop_phase1a_timer=true;
         dis_alive_f=true;
@@ -394,10 +395,10 @@ public class PaxosServer extends Node {
   }
   private void handleHeartbeatReply(HeartbeatReply message,Address sender){
     //distinguished leader
-    if(message.ballot()>l_ballot){//???
+    if(message.ballot()>l_ballot&&isActive){//???
       isActive = false;
       //election=false;
-      dis_alive_f=false;
+      dis_alive_f=true;
       set(new CheckActive(), CheckActive.RETRY_MILLIS);
     }
     if(!isActive)return;
@@ -444,6 +445,7 @@ private void onCheckActive(CheckActive t){
 
   if(isActive){return;}//only follower leader need check active
   if(election||!stop_phase1a_timer){return;}//in process of election, no matter if is new l_ballot
+  Logger.getLogger("").info("FinishCheckActiveTimer by: "+this.address+ " leader_alive: "+ (dis_alive_s||dis_alive_f)+" a_ballot: "+a_ballot);
   if(!dis_alive_f&&!dis_alive_s){//current distinguished leader dead
     seq_num++;
     double num=seq_num+0.1*leader_number;
@@ -457,7 +459,6 @@ private void onCheckActive(CheckActive t){
     return;
   }
   set(t,CheckActive.RETRY_MILLIS);
-  Logger.getLogger("").info("FinishCheckActiveTimer by: "+this.address+ " leader_alive: "+ (dis_alive_s||dis_alive_f)+" a_ballot: "+a_ballot);
   dis_alive_s=dis_alive_f;
   dis_alive_f=false;
 }
@@ -493,17 +494,17 @@ private void count_1(HashMap<Address, Phase1b> record) {
   }
   Logger.getLogger("").info("counts.D: "+this.address+ " : "+counts.getOrDefault("D",0));
   Logger.getLogger("").info("counts.P: "+this.address+ " : "+counts.getOrDefault("P",0));
-  if (counts.containsKey("P") && counts.get("P") > servers.length / 2) {//received majority
+  if (counts.containsKey("P") && counts.get("P") > servers.length / 2 &&election) {//received majority
     isActive = false;
     Logger.getLogger("").info("Stop Phase1: "+this.address+ " and checkActive");
-    dis_alive_f=false;
+    dis_alive_f=true;
     dis_alive_s=false;
     set(new CheckActive(),CheckActive.RETRY_MILLIS);
     stop_phase1a_timer = true;
     election=false;
     //phase1b_record.clear();
   }
-  else if (counts.containsKey("D") && counts.get("D") > servers.length / 2) {
+  else if (counts.containsKey("D") && counts.get("D") > servers.length / 2&&election) {
     Logger.getLogger("").info("Distinguished Leader: "+this.address +", ballot: "+ l_ballot);
     isActive = true;//???
     current_leader_ballot=l_ballot;
@@ -565,10 +566,10 @@ private void count_1(HashMap<Address, Phase1b> record) {
           String key = Objects.equals(p2b.ballot_num(), l_ballot) ? "D" : "P";
           counts.put(key, counts.getOrDefault(key, 0) + 1);
         }
-        if (counts.containsKey("P") && counts.get("P") > servers.length / 2) {
+        if (counts.containsKey("P") && counts.get("P") > servers.length / 2&&isActive) {
           Logger.getLogger("").info( "Preempted"+this.address);
           isActive = false;
-          dis_alive_f=false;
+          dis_alive_f=true;
           dis_alive_s=false;
           set(new CheckActive(), CheckActive.RETRY_MILLIS);
           Logger.getLogger("").info("isActive may changed: "+this.address+ " "+isActive);

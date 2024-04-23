@@ -27,7 +27,7 @@ public final class ShardMaster implements Application {
   private final int numShards;
 
   // Your code here...
-  private static int config_num;
+  private int config_num;
   private HashMap<Integer,Integer> current_config=new HashMap<>();
   private HashMap<Integer,HashMap<Integer,Integer>> config_records= new HashMap<>();//records[config_num]:groupId
   Set<Integer> setGroupId=new HashSet<>();
@@ -129,6 +129,7 @@ public final class ShardMaster implements Application {
       }
       current_config=backup_config;
       Logger.getLogger("").info("current_config after join: " + current_config);
+      Logger.getLogger("").info("config_num: "+config_num);
       config_records.put(config_num, new HashMap<>(current_config)); // Add a copy of current_config
       config_groups.put(config_num, new HashSet<>(setGroupId)); // Add a copy
       group_records.put(join.groupId, join.servers);
@@ -175,7 +176,9 @@ public final class ShardMaster implements Application {
         current_config=backup_config;
         Logger.getLogger("").info("current_config after leave: " + current_config);
         config_records.put(config_num,new HashMap<>(current_config));
+        Logger.getLogger("").info("config_records: " + config_records);
         config_groups.put(config_num, new HashSet<>(setGroupId));
+        Logger.getLogger("").info("config_groups: " + config_groups);
         return new Ok();
       }
     }
@@ -220,10 +223,13 @@ public final class ShardMaster implements Application {
         }
         //Logger.getLogger("").info("config_groups: " + config_groups);
         //Logger.getLogger("").info("config in shardmaster: " + config);
-        //Logger.getLogger("").info("config_num: " + num);
+        //Logger.getLogger("").info("config_num is: " + num);
         //System.out.print(num);
         if(Objects.equals(config_records.get(num),null)||Objects.equals(config_groups.get(num),null)||Objects.equals(config,null)){
           Logger.getLogger("").info("num: " + num);
+          Logger.getLogger("").info("config_records: " + config_records);
+          Logger.getLogger("").info("config_groups: " + config_groups);
+          Logger.getLogger("").info("config in shardmaster: " + config);
           return new Error();
         }
         else{
