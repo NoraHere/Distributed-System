@@ -146,7 +146,8 @@ public class ShardStoreServer extends ShardStoreNode {
         }
       }
       else if(m.shardNum()>currentShardConfig.configNum()){//client's configNum is larger
-        checkIn();
+        //checkIn();
+        return;
       }
       else{//the client's configNum is out of date
         res = new AMOResult(null, AMOCommand.getSequenceNum(comm), AMOCommand.getAddress(comm));
@@ -154,7 +155,8 @@ public class ShardStoreServer extends ShardStoreNode {
       }
     }
     else{
-      checkIn();
+      //checkIn();
+      return;
     }
   }
 
@@ -162,7 +164,7 @@ public class ShardStoreServer extends ShardStoreNode {
   private void handlePaxosReply(PaxosReply m,Address sender){
     //from shardMaster
     if(m.result()instanceof ShardMaster.Error){
-      checkIn();//resend
+      return;
     }
     else{
       ShardConfig shardConfig= (ShardConfig) m.result();
@@ -260,7 +262,8 @@ public class ShardStoreServer extends ShardStoreNode {
       }
     }
     else{//configNum different
-      checkIn();
+      //checkIn();???
+      return;
       //send(new PrepareReply(false,m.comm(),this.groupId,m.tryTimes(),currentShardConfig.configNum(),new HashMap<>()),sender);
     }
   }
@@ -309,7 +312,8 @@ public class ShardStoreServer extends ShardStoreNode {
       }
     }
     else if(currentShardConfig.configNum()<m.shardConfigNum()){
-        checkIn();
+        //checkIn();
+        return;
     }
 //    else{//resend prepare???
 //      HashMap<Integer,Set<Address>> servers=findParticipantServers(m.comm());
@@ -351,7 +355,8 @@ public class ShardStoreServer extends ShardStoreNode {
       }
     }
     else if(currentShardConfig.configNum()<m.shardConfigNum()){
-      checkIn();
+      //checkIn();
+      return;
     }
   }
   private void handleAskDecisionMessage(AskDecisionMessage message,Address sender){
@@ -397,8 +402,9 @@ public class ShardStoreServer extends ShardStoreNode {
       return;
     }
     else if(m.shardConfig().configNum()>nextConfigNum){//first need to get the latest config from shardMaster
-      checkIn();//ensure my shards have already sent
-      Logger.getLogger("").info("checkIn()");
+      //checkIn();//ensure my shards have already sent
+      //Logger.getLogger("").info("checkIn()");
+      return;
     }
     else{//nextConfigNum-1==m.shardConfig.configNum
       if(m.shardConfig().groupInfo().get(this.groupId).getRight().contains(m.theShard())){//this groupID do need the shard
@@ -506,7 +512,6 @@ public class ShardStoreServer extends ShardStoreNode {
       else{
         amoApplication_records.clear();
       }
-
       nextConfigNum++;firstTime=true;allReceived=false;
       duringReconfiguration=false;//stop reconfiguration process
       Logger.getLogger("").info(this.address()+ " move to nextConfigNum: "+ nextConfigNum);
@@ -526,7 +531,7 @@ public class ShardStoreServer extends ShardStoreNode {
   private void reconfiguration(ShardConfig shardConfig){
     Map<Integer, Pair<Set<Address>, Set<Integer>>> groupInfo=shardConfig.groupInfo();
     Logger.getLogger("").info(this.address()+"reconfiguration");
-    Logger.getLogger("").info(this.address()+"shards: "+shards);
+    Logger.getLogger("").info(this.address()+" shards: "+shards);
     Logger.getLogger("").info(this.address()+"pair: "+groupInfo.get(this.groupId));
     // groupId -> <group members, shard numbers>
     if(Objects.equals(shards, null)){//no need to transfer
@@ -607,6 +612,9 @@ public class ShardStoreServer extends ShardStoreNode {
     //Logger.getLogger("").info(this.address()+" transfer amoapplication_record: "+ amoApplication_records);
   }
   private void executeCommandList(){
+    if(commandList.isEmpty()){
+      return;
+    }
     AMOCommand comm=(AMOCommand) commandList.getFirst();//firstCommand
     Logger.getLogger("").info(this.address()+" execute command: "+comm);
     if(AMOCommand.getCommand(comm) instanceof ShardStoreServer.reconfig){
@@ -619,30 +627,28 @@ public class ShardStoreServer extends ShardStoreNode {
       checkAllDone();
     }
     else{
-      if(comm.command() instanceof SingleKeyCommand){
-        int theShard=findTheShard(comm.command());
-        if(Objects.equals(amoApplication_records.get(theShard),null)){//should not happen
-          checkIn();
-          return;
-        }
-        res=amoApplication_records.get(theShard).execute(comm);
-        //res=amoApplication.execute(m.command());
-        send(new ShardStoreReply(res,true,currentShardConfig.configNum()),AMOResult.getAddress(res));//send back to client
-        commandList.removeFirst();
-        if(!commandList.isEmpty()){
-          executeCommandList();
-        }
-      }
-      else{//part3
+      if(comm.command() instanceof Transaction){//part3
         participants_vote_record.put(comm,new HashMap<>());
         tryTimes.put(comm,1);
         if(!Objects.equals(currentShardConfig,null)){
           sendPrepareMessage(comm,1,currentShardConfig.configNum());
         }
         else{
-          checkIn();
+          //checkIn();
+          return;
         }
-
+      }
+      else if(comm.command() instanceof SingleKeyCommand){
+        int theShard=findTheShard(comm.command());
+        if(!Objects.equals(amoApplication_records.get(theShard),null)){
+          res=amoApplication_records.get(theShard).execute(comm);
+          //res=amoApplication.execute(m.command());
+          send(new ShardStoreReply(res,true,currentShardConfig.configNum()),AMOResult.getAddress(res));//send back to client
+          commandList.removeFirst();
+          if(!commandList.isEmpty()){
+            executeCommandList();
+          }
+        }
       }
     }
   }
@@ -781,7 +787,8 @@ public class ShardStoreServer extends ShardStoreNode {
     // groupId -> <group members, shard numbers>
     HashMap<Integer,Set<Address>> servers=findParticipantServers(comm.command());
     if(Objects.equals(servers,null)){//when currentConfig is null
-      checkIn();
+      //checkIn();
+      return;
     }
     else if(Objects.equals(servers.size(),1)){//only one group involves
       HashMap<Integer,Boolean> record=new HashMap<>();
@@ -886,7 +893,8 @@ public class ShardStoreServer extends ShardStoreNode {
       }
     }
     else{
-      checkIn();
+      //checkIn();
+      return;
     }
   }
 
